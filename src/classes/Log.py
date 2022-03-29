@@ -54,13 +54,13 @@ class Log:
 
     @caller_reader
     def info(self, msg):
-        self.LOGGER.info(msg)
+        self.LOGGER.info(msg.encode('utf-8'))
 
     @caller_reader
     def error(self, msg, send_notif=True):
         if self.smtp.enabled and send_notif:
             self.smtp.send_notification(msg, self.filename)
-        self.LOGGER.error(msg)
+        self.LOGGER.error(msg.encode('utf-8'))
 
 
 class CallerFilter(logging.Filter):

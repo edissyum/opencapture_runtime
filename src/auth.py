@@ -37,11 +37,11 @@ def token_required(view):
     return wrapped_view
 
 
-def generate_token(sub, days_before_exp):
+def generate_token(days_before_exp):
     payload = {
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=days_before_exp, seconds=0),
         'iat': datetime.datetime.utcnow(),
-        'sub': sub
+        'sub': 'Open-Capture Runtime'
     }
     token = jwt.encode(
         payload,
