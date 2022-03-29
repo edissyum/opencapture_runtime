@@ -1,0 +1,10 @@
+apache2
+python3
+python3-pip
+imagemagick
+tesseract-ocr
+tesseract-ocr-fra
+libtesseract-dev
+libleptonica-dev
+libmagickwand-dev
+libapache2-mod-wsgi-py3

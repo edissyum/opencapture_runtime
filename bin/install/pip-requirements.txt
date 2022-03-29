@@ -1,0 +1,7 @@
+pyocr
+flask
+PyJWT
+pandas
+pillow
+werkzeug
+pytesseract
