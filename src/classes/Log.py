@@ -17,6 +17,7 @@
 
 import os
 import logging
+from unidecode import unidecode
 from inspect import getframeinfo, stack
 from logging.handlers import RotatingFileHandler
 
@@ -54,13 +55,13 @@ class Log:
 
     @caller_reader
     def info(self, msg):
-        self.LOGGER.info(msg.encode('utf-8'))
+        self.LOGGER.info(unidecode(msg))
 
     @caller_reader
     def error(self, msg, send_notif=True):
         if self.smtp.enabled and send_notif:
             self.smtp.send_notification(msg, self.filename)
-        self.LOGGER.error(msg.encode('utf-8'))
+        self.LOGGER.error(unidecode(msg))
 
 
 class CallerFilter(logging.Filter):

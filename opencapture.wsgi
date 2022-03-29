@@ -22,7 +22,7 @@ import logging
 logging.basicConfig(stream=sys.stderr)
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 from rest import app as application
-application.config['PATH'] = os.path.dirname(os.path.realpath(__file__))
 
+application.config['PATH'] = os.path.dirname(os.path.realpath(__file__))
 with open(application.config['PATH'] + '/config/secrets', 'r') as secret_file:
     application.config['SECRET_KEY'] = secret_file.read()

@@ -1,3 +1,4 @@
 .idea/
 ordos/
 config/mail.ini
+bin/log/OCRunTime.log

@@ -78,6 +78,12 @@ systemctl restart apache2
 ####################
 # Copy file from default one
 cp $defaultPath/config/mail.ini.default $defaultPath/config/mail.ini
+cp $defaultPath/config/secrets.default $defaultPath/config/secrets
+
+####################
+# Generate secret key for Flask and replace it in src/backend/__init.py file
+secret=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+sed -i "s#§§SECRET§§#$secret#g" "$defaultPath"/config/secrets
 
 ####################
 # Fix the rights after root launch to avoid permissions issues
