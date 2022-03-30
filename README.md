@@ -17,7 +17,6 @@ The `./install.sh` command create the service using `www-data` group (apache2 de
     chmod u+x install.sh
     sudo ./install.sh
 
-
 It will install all the needed dependencies and install Tesseract V4.X.X with French and English locale. If you need more locales, just do :
 
     sudo apt install tesseract-ocr-<langcode>
