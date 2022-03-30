@@ -15,8 +15,22 @@
 
 # @dev : Nathan Cheval <nathan.cheval@outlook.fr>
 
+import os
 import uuid
 import datetime
+import functools
+from flask import current_app
+
+
+def is_dev(view):
+    @functools.wraps(view)
+    def wrapped_view(**kwargs):
+        if 'PATH' not in current_app.config:
+            current_app.config['PATH'] = os.path.dirname(os.path.realpath(__file__)).replace('/src', '')
+            with open(current_app.config['PATH'] + '/config/secrets', 'r') as secret_file:
+                current_app.config['SECRET_KEY'] = secret_file.read()
+        return view(**kwargs)
+    return wrapped_view
 
 
 def generate_tmp_filename():

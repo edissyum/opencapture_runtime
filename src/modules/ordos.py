@@ -27,6 +27,7 @@ from src.classes.Log import Log
 from src.classes.SMTP import SMTP
 from src.classes.Config import Config
 from src.classes.Locale import Locale
+from src.classes.Database import Database
 from src.process.FindDate import FindDate
 from src.process.FindRPPS import FindRPPS
 from src.process.FindSecu import FindSecu
@@ -182,6 +183,48 @@ def find_sociale_security_number(text_with_conf, log, locale, ocr):
     return data
 
 
+def construct_where_prescriber(args):
+    where = []
+    data = []
+    if args['prescriber_lastname']:
+        where.append('(nom ILIKE %s OR prenom ILIKE %s)')
+        data.append(args['prescriber_lastname'])
+        data.append(args['prescriber_lastname'])
+    if args['prescriber_firstname']:
+        where.append('(prenom ILIKE %s OR nom ILIKE %s)')
+        data.append(args['prescriber_firstname'])
+        data.append(args['prescriber_firstname'])
+    if args['adeli_number'] and not args['rpps_number']:
+        where.append('numero_adeli_cle IN ('', %s)')
+        data.append(args['adeli_number'])
+    if args['adeli_number'] and args['rpps_number']:
+        where.append("(numero_adeli_cle IN ('', %s) OR numero_rpps_cle IN ('', %s)")
+        data.append(args['adeli_number'])
+        data.append(args['rpps_number'])
+    if not args['adeli_number'] and args['rpps_number']:
+        where.append("numero_rpps_cle IN ('', %s)")
+        data.append(args['rpps_number'])
+    return where, data
+
+
+def construct_where_patient(args):
+    where = []
+    data = []
+    if args['birth_date']:
+        where.append('date_naissance = %s')
+        data.append(datetime.strptime(args['birth_date'], '%d/%m/%Y').strftime('%Y%m%d'))
+    if args['patient_lastname']:
+        where.append('nom ILIKE %s')
+        data.append(args['patient_lastname'])
+    if args['patient_firstname']:
+        where.append('prenom ILIKE %s')
+        data.append(args['patient_firstname'])
+    if args['sociale_security_number']:
+        where.append('nir = %s')
+        data.append(args['sociale_security_number'])
+    return where, data
+
+
 def run(args):
     if 'fileContent' not in args or 'psNumber' not in args:
         return False, "Il manque une ou plusieurs donnée(s) obligatoire(s)", 400
@@ -199,6 +242,7 @@ def run(args):
     min_char_num = 280
     locale = Locale(path)
     config_mail = Config(path + '/config/mail.ini')
+    config = Config(path + '/config/modules/ordonnances/config.ini')
     smtp = SMTP(
         config_mail.cfg['GLOBAL']['smtp_notif_on_error'],
         config_mail.cfg['GLOBAL']['smtp_host'],
@@ -213,6 +257,7 @@ def run(args):
         config_mail.cfg['GLOBAL']['smtp_from_mail'],
     )
     log = Log(path + '/bin/log/OCRunTime.log', smtp)
+    database = Database(log, config.cfg['DATABASE'])
     ocr = PyTesseract('fra', log, path)
     prescription_time_delta = 2190  # 6 ans max pour les dates d'ordonnance
     dateProcess = FindDate('', log, locale, prescription_time_delta)
@@ -235,21 +280,66 @@ def run(args):
             rpps_number = find_rpps(text_with_conf, log, locale, ocr)
             sociale_security_number = find_sociale_security_number(text_with_conf, log, locale, ocr)
 
-            _data = {
-                'prescription_date': prescription_date,
+            where_patient, data_patient = construct_where_patient({
+                'patient_firstname': patient_firstname,
+                'patient_lastname': patient_lastname,
                 'birth_date': birth_date,
+                'sociale_security_number': sociale_security_number,
+            })
+            where_prescriber, data_prescriber = construct_where_prescriber({
+                'prescriber_firstname': prescriber_firstname,
+                'prescriber_lastname': prescriber_lastname,
+                'adeli_number': adeli_number,
+                'rpps_number': rpps_number
+            })
+
+            patient_bdd = prescriber_bdd = {}
+            if where_patient and data_patient:
+                try:
+                    patient_bdd = database.select({
+                        'select': ['date_naissance', 'nir', 'nom', 'prenom'],
+                        'table': ['application.patient'],
+                        'where': where_patient,
+                        'data': data_patient,
+                        'limit': 1
+                    })[0]
+                    if patient_bdd and patient_bdd['date_naissance']:
+                        birth_date = datetime.strptime(patient_bdd['date_naissance'], '%Y%m%d').strftime('%d/%m/%Y')
+                except IndexError:
+                    pass
+
+            if where_prescriber and data_prescriber:
+                try:
+                    prescriber_bdd = database.select({
+                        'select': ['*'],
+                        'table': ['application.praticien'],
+                        'where': where_prescriber,
+                        'data': data_prescriber,
+                        'limit': 1
+                    })[0]
+                    if prescriber_bdd:
+                        if not adeli_number and prescriber_bdd['numero_adeli_cle']:
+                            adeli_number = prescriber_bdd['numero_adeli_cle']
+                        if not rpps_number and prescriber_bdd['numero_rpps_cle']:
+                            rpps_number = prescriber_bdd['numero_rpps_cle']
+                except IndexError:
+                    pass
+
+            _data = {
+                'patient_nir': sociale_security_number if sociale_security_number else (patient_bdd['nir'] if patient_bdd else ''),
+                'patient_birth_date': birth_date,
                 'patient_lastname': patient_lastname,
                 'patient_firstname': patient_firstname,
                 'prescriber_lastname': prescriber_lastname,
                 'prescriber_firstname': prescriber_firstname,
-                'adeli_number': adeli_number,
-                'rpps_number': rpps_number,
-                'sociale_security_number': sociale_security_number,
+                'prescriber_adeli_number': adeli_number,
+                'prescriber_rpps_number': rpps_number,
+                'prescription_date': prescription_date,
             }
 
             end = time.time()
             _data.update({'process_time': timer(start, end)})
-            _ret = True,
+            _ret = True
             _http_code = 200
         else:
             _data = ''

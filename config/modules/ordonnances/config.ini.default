@@ -1,0 +1,6 @@
+[DATABASE]
+postgreshost =
+postgresport =
+postgresdatabase =
+postgresuser =
+postgrespassword =

@@ -16,6 +16,7 @@
 # @dev : Nathan Cheval <nathan.cheval@outlook.fr>
 
 from flask import Flask, request
+from src.functions import is_dev
 from src.auth import token_required, generate_token
 
 app = Flask(__name__)
@@ -32,6 +33,7 @@ app.config['MODULES'] = {
 
 
 @app.route('/auth/getToken', methods=['GET'])
+@is_dev
 def get_token():
     days_before_exp = 1
     token = generate_token(days_before_exp)
@@ -42,6 +44,7 @@ def get_token():
 
 
 @app.route('/oc/getDocumentInformations', methods=['POST'])
+@is_dev
 @token_required
 def get_document_informations():
     args = request.get_json()
@@ -65,3 +68,4 @@ def get_document_informations():
 
 if __name__ == "__main__":
     app.run()
+
