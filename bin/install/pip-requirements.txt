@@ -4,4 +4,5 @@ PyJWT
 pandas
 pillow
 werkzeug
+unidecode
 pytesseract

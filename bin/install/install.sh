@@ -22,7 +22,6 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 defaultPath=/var/www/html/opencapture_runtime/
-imageMagickPolicyFile=/etc/ImageMagick-6/policy.xml
 
 user=$(who am i | awk '{print $1}')
 group=www-data
