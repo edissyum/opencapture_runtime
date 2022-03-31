@@ -32,7 +32,7 @@ from src.process.FindDate import FindDate
 from src.process.FindRPPS import FindRPPS
 from src.process.FindSecu import FindSecu
 from src.process.FindAdeli import FindAdeli
-from src.process.FindPatient import FindPatient
+from src.process.FindPerson import FindPerson
 from src.classes.PyTesseract import PyTesseract
 from src.functions import generate_tmp_filename
 from src.process.FindPrescriber import FindPrescriber
@@ -130,7 +130,7 @@ def find_date(dateProcess, text_with_conf, prescription_time_delta):
 
 def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content):
     firstname, lastname = '', ''
-    patient = FindPatient(text_with_conf, log, locale, ocr).run()
+    patient = FindPerson(text_with_conf, log, locale, ocr).run()
     if date_birth and patient is None:
         text_words = ocr.word_box_builder(image_content)
         patient = search_patient_from_birth_date(date_birth, text_words)

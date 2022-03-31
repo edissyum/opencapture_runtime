@@ -18,7 +18,7 @@ from process.FindDate import FindDate
 from process.FindRPPS import FindRPPS
 from process.FindSecu import FindSecu
 from process.FindAdeli import FindAdeli
-from process.FindPatient import FindPatient
+from process.FindPerson import FindPerson
 from classes.PyTesseract import PyTesseract
 from process.FindPrescriber import FindPrescriber
 
@@ -118,7 +118,7 @@ def find_date():
 
 def find_patient(date_birth):
     firstname, lastname = '', ''
-    patient = FindPatient(text_with_conf, log, locale, ocr).run()
+    patient = FindPerson(text_with_conf, log, locale, ocr).run()
     if date_birth and patient is None:
         text_words = ocr.word_box_builder(image_content)
         patient = search_patient_from_birth_date(date_birth, text_words)

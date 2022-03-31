@@ -18,7 +18,7 @@
 import re
 
 
-class FindPatient:
+class FindPerson:
     def __init__(self, text, log, locale, ocr):
         self.date = ''
         self.Log = log
@@ -29,18 +29,18 @@ class FindPatient:
     @staticmethod
     def process(line):
         line = line.replace('/', '').replace('-', '').replace('=', '')
-        for _patient_name in re.finditer(r"(MADAME|MADEMOISELLE|MLLE|(M)?ONSIEUR).*", line, flags=re.IGNORECASE):
-            if _patient_name.group():
-                patient_name = re.sub(r"(MADAME|MADEMOISELLE|MLLE|(M)?ONSIEUR)", '', _patient_name.group(), flags=re.IGNORECASE)
-                patient_name = re.sub(r"[0-9]", '', patient_name, flags=re.IGNORECASE)
-                patient_name = re.sub(r"[|!,*)@#%(&$_?.^:\[\]]", '', patient_name, flags=re.IGNORECASE)
-                patient_name = re.sub(r"(N(É|E)(\(?E\)?)?\s*(L|1)E)|DATE\s*DE\s*NAISSANCE", '', patient_name, flags=re.IGNORECASE)
-                return patient_name.strip()
+        for _person_name in re.finditer(r"(MADAME|MADEMOISELLE|MLLE|(M)?ONSIEUR).*", line, flags=re.IGNORECASE):
+            if _person_name.group():
+                person_name = re.sub(r"(MADAME|MADEMOISELLE|MLLE|(M)?ONSIEUR)", '', _person_name.group(), flags=re.IGNORECASE)
+                person_name = re.sub(r"[0-9]", '', person_name, flags=re.IGNORECASE)
+                person_name = re.sub(r"[|!,*)@#%(&$_?.^:\[\]]", '', person_name, flags=re.IGNORECASE)
+                person_name = re.sub(r"(N(É|E)(\(?E\)?)?\s*(L|1)E)|DATE\s*DE\s*NAISSANCE", '', person_name, flags=re.IGNORECASE)
+                return person_name.strip()
         return []
 
     def run(self):
         for line in self.text:
             res = self.process(line['text'])
             if res:
-                self.Log.info('Patient name found : ' + res)
+                self.Log.info('Person found : ' + res)
                 return res
