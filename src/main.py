@@ -81,16 +81,16 @@ def search_patient_from_birth_date(date_birth, text_words):
             'yTL': text.position[0][1],
             'xBR': text.position[1][0],
             'yBR': text.position[1][1],
-            'content': t.content
+            'content': text.content
         })
-        t.content = t.content.replace(':', '/')
-        if date_birth[0] in t.content:
+        text.content = text.content.replace(':', '/')
+        if date_birth[0] in text.content:
             date_birth_data = {
                 'xTL': text.position[0][0],
                 'yTL': text.position[0][1],
                 'xBR': text.position[1][0],
                 'yBR': text.position[1][1],
-                'content': t.content
+                'content': text.content
             }
             res = get_near_words(arrayOfLine, date_birth_data)
             return res
@@ -176,10 +176,10 @@ if __name__ == '__main__':
     min_char_num = 280
     prescription_path = '/home/nathan/ordo30k/'
     data_ordos = '/home/nathan/dataordo30k.csv'
-    csv_export = 'bin/csv/export.csv'
-    log = Log('bin/log/CBA.log')
-    ocr = PyTesseract('fra', log, path)
-    locale = Locale()
+    csv_export = 'export.csv'
+    log = Log('../bin/log/CBA.log', None)
+    ocr = PyTesseract('fra', log, '/var/www/html/opencapture_runtime/')
+    locale = Locale('/var/www/html/opencapture_runtime/')
     prescription_time_delta = 2190  # 6 ans max pour les dates d'ordonnance
     dateProcess = FindDate('', log, locale, prescription_time_delta)
     csv_file = open(csv_export, 'w')
@@ -208,7 +208,8 @@ if __name__ == '__main__':
 
             if char_count > min_char_num:
                 cpt = cpt + 1
-            # print(str(cpt) + '/' + str(number_of_prescription))
+            else:
+                continue
             if char_count > min_char_num:
                 # Retrieve all the information
                 prescription_date, birth_date = find_date()
@@ -223,7 +224,6 @@ if __name__ == '__main__':
                 for t in [prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number]:
                     if not t:
                         number_of_empty += 1
-
                 if number_of_empty < 7:
                     print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number, sociale_security_number)
                     with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
@@ -256,14 +256,12 @@ if __name__ == '__main__':
                                     patient_firstname_percentage = fuzz.ratio(row['prenom_1'], patient_firstname)
                                     patient_lastname_percentage = fuzz.ratio(row['nom_1'], patient_lastname)
                                     global_percentage = (prescriber_lastname_percentage + prescriber_firstname_percentage + adeli_percentage + rpps_percentage + patient_lastname_percentage + patient_firstname_percentage) / number
-                                    print(str(global_percentage) + '%')
                             line_count += 1
 
                     # Get raw text from lines to store them in CSV
                     raw_content = ''
                     for line in text_with_conf:
-                        # print(line.content)
-                        raw_content += line.content + "\n"
+                        raw_content += line['text'] + "\n"
 
                     # Write on the CSV file
                     end = time.time()

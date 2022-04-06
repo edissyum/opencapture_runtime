@@ -286,12 +286,17 @@ def run(args):
                 'birth_date': birth_date,
                 'sociale_security_number': sociale_security_number,
             })
-            where_prescriber, data_prescriber = construct_where_prescriber({
-                'prescriber_firstname': prescriber_firstname,
-                'prescriber_lastname': prescriber_lastname,
-                'adeli_number': adeli_number,
-                'rpps_number': rpps_number
-            })
+
+            if 'psNumber' not in args:
+                where_prescriber, data_prescriber = construct_where_prescriber({
+                    'prescriber_firstname': prescriber_firstname,
+                    'prescriber_lastname': prescriber_lastname,
+                    'adeli_number': adeli_number,
+                    'rpps_number': rpps_number
+                })
+            else:
+                where_prescriber = ['id = %s']
+                data_prescriber = [args['psNumber']]
 
             patient_bdd = prescriber_bdd = {}
             if where_patient and data_patient:
@@ -311,13 +316,17 @@ def run(args):
             if where_prescriber and data_prescriber:
                 try:
                     prescriber_bdd = database.select({
-                        'select': ['*'],
+                        'select': ['nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
                         'table': ['application.praticien'],
                         'where': where_prescriber,
                         'data': data_prescriber,
                         'limit': 1
                     })[0]
                     if prescriber_bdd:
+                        if prescriber_bdd['nom'] and prescriber_bdd['nom'] != 'NON CONNU':
+                            prescriber_lastname = prescriber_bdd['nom']
+                        if prescriber_bdd['prenom'] and prescriber_bdd['nom'] != 'NON CONNU':
+                            prescriber_firstname = prescriber_bdd['prenom']
                         if not adeli_number and prescriber_bdd['numero_adeli_cle']:
                             adeli_number = prescriber_bdd['numero_adeli_cle']
                         if not rpps_number and prescriber_bdd['numero_rpps_cle']:

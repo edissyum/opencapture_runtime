@@ -86,7 +86,7 @@ class PyTesseract:
         for i in range(len(lines)):
             if lines[i].strip():
                 conf = round(confs[i], 2)
-                if conf >= 70:
+                if conf >= 80:
                     line_conf.append({'text': lines[i], 'conf': conf})
         return line_conf
 

@@ -94,7 +94,6 @@ class Database:
             cursor = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             try:
-                print(query, args['data'])
                 cursor.execute(query, args['data'])
                 return cursor.fetchall()
             except psycopg2.OperationalError as pgsql_error:
