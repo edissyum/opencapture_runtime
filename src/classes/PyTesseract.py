@@ -77,11 +77,12 @@ class PyTesseract:
         # Retrieve data from image
         data = pytesseract.image_to_data(img, config='--psm 6', output_type='data.frame')
         data = data[data.conf > 0]
-        data = data.dropna().astype(str)
+        data.head()
 
         # Transform words into line and get confidences for each
         lines = data.groupby(['page_num', 'block_num', 'par_num', 'line_num'])['text'].apply(lambda x: ' '.join(list(x))).tolist()
         confs = data.groupby(['page_num', 'block_num', 'par_num', 'line_num'])['conf'].mean().tolist()
+
         line_conf = []
         for i in range(len(lines)):
             if lines[i].strip():
