@@ -150,31 +150,45 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content):
     return [lastname.strip(), firstname.strip()]
 
 
-def find_prescriber(text_with_conf, log, locale, ocr):
-    firstname, lastname = '', ''
-    prescriber = FindPrescriber(text_with_conf, log, locale, ocr).run()
-    if prescriber:
-        if not prescriber.isupper():
-            splitted = prescriber.split(' ')
-            for data in splitted:
-                if data.isupper():
-                    lastname = data
+def find_prescribers(text_with_conf, log, locale, ocr, database):
+    ps_list = []
+    prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
+    rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
+
+    if prescribers:
+        for cpt in range(0, len(prescribers)):
+            firstname = lastname = ''
+            if not prescribers[cpt].isupper():
+                splitted = prescribers[cpt].split(' ')
+                for data in splitted:
+                    if data.isupper():
+                        lastname = data
+                    else:
+                        firstname += data.capitalize() + ' '
+            else:
+                splitted = prescribers[cpt].split(' ')
+                lastname = splitted[0]
+                firstname = splitted[1] if len(splitted) > 1 else ''
+
+            if rpps_numbers[cpt]:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_adeli_cle'],
+                    'table': ['application.praticien'],
+                    'where': ['numero_rpps_cle = %s'],
+                    'data': [rpps_numbers[cpt]],
+                    'limit': 1
+                })
+                if info:
+                    ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': rpps_numbers[cpt], 'adeli': info[0]['numero_adeli_cle']})
                 else:
-                    firstname += data.capitalize() + ' '
-        else:
-            splitted = prescriber.split(' ')
-            lastname = splitted[0]
-            firstname = splitted[1] if len(splitted) > 1 else ''
-    return [lastname.strip(), firstname.strip()]
+                    ps_list.append({'id': None, 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'rpps': rpps_numbers[cpt]})
+            else:
+                ps_list.append({'id': None, 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'rpps': rpps_numbers[cpt]})
+    return ps_list
 
 
 def find_adeli(text_with_conf, log, locale, ocr):
     data = FindAdeli(text_with_conf, log, locale, ocr).run()
-    return data
-
-
-def find_rpps(text_with_conf, log, locale, ocr):
-    data = FindRPPS(text_with_conf, log, locale, ocr).run()
     return data
 
 
@@ -183,54 +197,12 @@ def find_sociale_security_number(text_with_conf, log, locale, ocr):
     return data
 
 
-def construct_where_prescriber(args):
-    where = []
-    data = []
-    if args['prescriber_lastname']:
-        where.append('(nom ILIKE %s OR prenom ILIKE %s)')
-        data.append(args['prescriber_lastname'])
-        data.append(args['prescriber_lastname'])
-    if args['prescriber_firstname']:
-        where.append('(prenom ILIKE %s OR nom ILIKE %s)')
-        data.append(args['prescriber_firstname'])
-        data.append(args['prescriber_firstname'])
-    if args['adeli_number'] and not args['rpps_number']:
-        where.append('numero_adeli_cle IN ('', %s)')
-        data.append(args['adeli_number'])
-    if args['adeli_number'] and args['rpps_number']:
-        where.append("(numero_adeli_cle IN ('', %s) OR numero_rpps_cle IN ('', %s)")
-        data.append(args['adeli_number'])
-        data.append(args['rpps_number'])
-    if not args['adeli_number'] and args['rpps_number']:
-        where.append("numero_rpps_cle IN ('', %s)")
-        data.append(args['rpps_number'])
-    return where, data
-
-
-def construct_where_patient(args):
-    where = []
-    data = []
-    if args['birth_date']:
-        where.append('date_naissance = %s')
-        data.append(datetime.strptime(args['birth_date'], '%d/%m/%Y').strftime('%Y%m%d'))
-    if args['patient_lastname']:
-        where.append('nom ILIKE %s')
-        data.append(args['patient_lastname'])
-    if args['patient_firstname']:
-        where.append('prenom ILIKE %s')
-        data.append(args['patient_firstname'])
-    if args['sociale_security_number']:
-        where.append('nir = %s')
-        data.append(args['sociale_security_number'])
-    return where, data
-
-
 def run(args):
-    if 'fileContent' not in args or 'psNumber' not in args:
+    if 'fileContent' not in args or 'cabinetId' not in args:
         return False, "Il manque une ou plusieurs donnée(s) obligatoire(s)", 400
 
     file_content = args['fileContent']
-    professionnal_number = args['psNumber']
+    cabinet_id = args['cabinetId']
 
     path = current_app.config['PATH']
     file = path + '/' + generate_tmp_filename()
@@ -275,74 +247,30 @@ def run(args):
         if char_count > min_char_num:
             prescription_date, birth_date = find_date(dateProcess, text_with_conf, prescription_time_delta)
             patient_lastname, patient_firstname = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content)
-            prescriber_lastname, prescriber_firstname = find_prescriber(text_with_conf, log, locale, ocr)
+            prescribers = find_prescribers(text_with_conf, log, locale, ocr, database)
             adeli_number = find_adeli(text_with_conf, log, locale, ocr)
-            rpps_number = find_rpps(text_with_conf, log, locale, ocr)
             sociale_security_number = find_sociale_security_number(text_with_conf, log, locale, ocr)
 
-            where_patient, data_patient = construct_where_patient({
-                'patient_firstname': patient_firstname,
-                'patient_lastname': patient_lastname,
-                'birth_date': birth_date,
-                'sociale_security_number': sociale_security_number,
+            patients_list = database.select({
+                'select': ['nom', 'prenom', 'date_naissance', 'nir'],
+                'table': ['application.patient'],
+                'where': ['cabinet_id = %s'],
+                'data': [cabinet_id]
             })
 
-            if 'psNumber' not in args:
-                where_prescriber, data_prescriber = construct_where_prescriber({
-                    'prescriber_firstname': prescriber_firstname,
-                    'prescriber_lastname': prescriber_lastname,
-                    'adeli_number': adeli_number,
-                    'rpps_number': rpps_number
-                })
-            else:
-                where_prescriber = ['id = %s']
-                data_prescriber = [args['psNumber']]
-
-            patient_bdd = prescriber_bdd = {}
-            if where_patient and data_patient:
-                try:
-                    patient_bdd = database.select({
-                        'select': ['date_naissance', 'nir', 'nom', 'prenom'],
-                        'table': ['application.patient'],
-                        'where': where_patient,
-                        'data': data_patient,
-                        'limit': 1
-                    })[0]
-                    if patient_bdd and patient_bdd['date_naissance']:
-                        birth_date = datetime.strptime(patient_bdd['date_naissance'], '%Y%m%d').strftime('%d/%m/%Y')
-                except IndexError:
-                    pass
-
-            if where_prescriber and data_prescriber:
-                try:
-                    prescriber_bdd = database.select({
-                        'select': ['nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
-                        'table': ['application.praticien'],
-                        'where': where_prescriber,
-                        'data': data_prescriber,
-                        'limit': 1
-                    })[0]
-                    if prescriber_bdd:
-                        if prescriber_bdd['nom'] and prescriber_bdd['nom'] != 'NON CONNU':
-                            prescriber_lastname = prescriber_bdd['nom']
-                        if prescriber_bdd['prenom'] and prescriber_bdd['nom'] != 'NON CONNU':
-                            prescriber_firstname = prescriber_bdd['prenom']
-                        if not adeli_number and prescriber_bdd['numero_adeli_cle']:
-                            adeli_number = prescriber_bdd['numero_adeli_cle']
-                        if not rpps_number and prescriber_bdd['numero_rpps_cle']:
-                            rpps_number = prescriber_bdd['numero_rpps_cle']
-                except IndexError:
-                    pass
-
             _data = {
-                'patient_nir': sociale_security_number if sociale_security_number else (patient_bdd['nir'] if patient_bdd else ''),
-                'patient_birth_date': birth_date,
-                'patient_lastname': patient_lastname,
-                'patient_firstname': patient_firstname,
-                'prescriber_lastname': prescriber_lastname,
-                'prescriber_firstname': prescriber_firstname,
-                'prescriber_adeli_number': adeli_number,
-                'prescriber_rpps_number': rpps_number,
+                'patients': [
+                    {
+                        'patient_id': 1,
+                        'patient_nir': sociale_security_number,
+                        'patient_birth_date': birth_date,
+                        'patient_lastname': patient_lastname,
+                        'patient_firstname': patient_firstname,
+                    }
+                ],
+                'prescribers': prescribers,
+                'acte': None,
+                'description': None,
                 'prescription_date': prescription_date,
             }
 

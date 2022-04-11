@@ -26,7 +26,7 @@ app = Flask(__name__)
 # La partie method contient le nom de la fonction qui sera appelé dans le WS get_document_informations pour appliquer le traitement spécifique
 app.config['MODULES'] = {
     "ordonnances": {
-        "filename": "ordos.py",
+        "filename": "main.py",
         "method": "run"
     }
 }
@@ -53,8 +53,7 @@ def get_document_informations():
             _module = app.config['MODULES']
             _filename = _module.get(args['module']).get('filename').replace('.py', '')
             _method = _module.get(args['module']).get('method')
-            run_module = getattr(__import__('src.modules.' + _filename, fromlist=_method), _method)
-
+            run_module = getattr(__import__('src.modules.' + args['module'] + '.' + _filename, fromlist=_method), _method)
             res = run_module(args['data'])
             if res[0]:
                 return {'data': res[1], 'error': False}, res[2]

@@ -65,6 +65,7 @@ class FindRPPS:
         return False
 
     def process(self, line):
+        _rrps = []
         for item in self.ocr.OCRErrorsTable['NUMBERS']:
             pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
             line = re.sub(pattern, item, line)
@@ -73,12 +74,11 @@ class FindRPPS:
         for _rpps in re.finditer(r"[0-9]{11}", line):
             data = _rpps.group()
             if data and self.rpps_verification(data):
-                return data
-        return []
+                _rrps.append(data)
+        return _rrps
 
     def run(self):
         for line in self.text:
             res = self.process(line['text'].upper())
             if res:
-                self.Log.info('RPPS number found : ' + res)
                 return res
