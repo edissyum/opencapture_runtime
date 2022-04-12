@@ -34,7 +34,7 @@ class FindPrescriber:
             prescribers = re.split(r"(?:(?:D|P|J)?OCTEUR(?!S)|DR.)", _prescriber_name.group(), flags=re.IGNORECASE)
             for _ps in prescribers:
                 if _ps:
-                    _ps = re.sub(r"[0-9]", '', _ps, flags=re.IGNORECASE)
+                    _ps = re.sub(r"\d", '', _ps, flags=re.IGNORECASE)
                     _ps = re.sub(r"[|!,*)@#%(&$_?.^:\[\]]", '', _ps, flags=re.IGNORECASE)
                     splitted = _ps.strip().split(' ')
                     if len(splitted) > 1:
@@ -47,4 +47,5 @@ class FindPrescriber:
         for line in self.text:
             res = self.process(line['text'])
             if res:
+                self.Log.info('Prescriber name found : ' + str(res))
                 return res

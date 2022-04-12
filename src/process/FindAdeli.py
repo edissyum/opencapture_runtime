@@ -65,6 +65,7 @@ class FindAdeli:
         return False
 
     def process(self, line, second=False):
+        _adelis_list = []
         if second:
             for item in self.ocr.OCRErrorsTable['NUMBERS']:
                 pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
@@ -72,30 +73,32 @@ class FindAdeli:
 
         line = line.replace('/', '').replace(' ', '').replace('-', '')
         for _adeli in re.finditer(r"N(°|O)\s*(FIN(E|C)SS|AD(E|É)LI).*", line.upper()):
-            data = _adeli.group()
-            data = re.sub(r"N(°|O)\s*(FIN(E|C)SS|AD(E|É)LI)", '', data, flags=re.IGNORECASE)
-            for item in self.ocr.OCRErrorsTable['NUMBERS']:
-                pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
-                data = re.sub(pattern, item, data)
-            if data and self.adeli_verification(data):
-                return data
+            adelis = re.split(r"(?:(?:N(?:°|O))\s*(?:FIN(?:E|C)SS|AD(?:E|É)LI))", _adeli.group(), flags=re.IGNORECASE)
+            for _ad in adelis:
+                if _ad:
+                    _ad = re.sub(r"[|!,*)@#%(&$_?.^:\[\]]", '', _ad, flags=re.IGNORECASE)
+                    for item in self.ocr.OCRErrorsTable['NUMBERS']:
+                        pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
+                        _ad = re.sub(pattern, item, _ad)
+                    if _ad and self.adeli_verification(_ad):
+                        _adelis_list.append(_ad.strip())
 
         if second:
-            for _adeli in re.finditer(r"[0-9]{9}", line):
+            for _adeli in re.finditer(r"\d{9}", line):
                 data = _adeli.group()
                 if data and self.adeli_verification(data):
-                    return data
-        return []
+                    _adelis_list.append(data)
+        return _adelis_list
 
     def run(self):
         for line in self.text:
             res = self.process(line['text'].upper())
             if res:
-                self.Log.info('Adeli number found : ' + res)
+                self.Log.info('Adeli number found : ' + str(res))
                 return res
 
         for line in self.text:
             res = self.process(line['text'].upper(), True)
             if res:
-                self.Log.info('Adeli number found : ' + res)
+                self.Log.info('Adeli number found : ' + str(res))
                 return res

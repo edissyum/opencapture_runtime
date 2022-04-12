@@ -80,7 +80,7 @@ class PyTesseract:
         data.head()
 
         # Transform words into line and get confidences for each
-        lines = data.groupby(['page_num', 'block_num', 'par_num', 'line_num'])['text'].apply(lambda x: ' '.join(list(x))).tolist()
+        lines = data.groupby(['page_num', 'block_num', 'par_num', 'line_num'])['text'].apply(lambda x: ' '.join(list(x.astype(str)))).tolist()
         confs = data.groupby(['page_num', 'block_num', 'par_num', 'line_num'])['conf'].mean().tolist()
 
         line_conf = []

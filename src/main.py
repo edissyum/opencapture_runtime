@@ -16,7 +16,7 @@ from classes.Log import Log
 from classes.Locale import Locale
 from process.FindDate import FindDate
 from process.FindRPPS import FindRPPS
-from process.FindSecu import FindSecu
+from process.FindNir import FindNir
 from process.FindAdeli import FindAdeli
 from process.FindPerson import FindPerson
 from classes.PyTesseract import PyTesseract
@@ -138,22 +138,24 @@ def find_patient(date_birth):
     return [lastname.strip(), firstname.strip()]
 
 
-def find_prescriber():
-    firstname, lastname = '', ''
-    prescriber = FindPrescriber(text_with_conf, log, locale, ocr).run()
-    if prescriber:
-        if not prescriber.isupper():
-            splitted = prescriber.split(' ')
-            for data in splitted:
-                if data.isupper():
-                    lastname = data
-                else:
-                    firstname += data.capitalize() + ' '
-        else:
-            splitted = prescriber.split(' ')
-            lastname = splitted[0]
-            firstname = splitted[1] if len(splitted) > 1 else ''
-    return [lastname.strip(), firstname.strip()]
+def find_prescriber(text_with_conf, log, locale, ocr):
+    prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
+    if prescribers:
+        for cpt in range(0, len(prescribers)):
+            firstname = lastname = ''
+            if not prescribers[cpt].isupper():
+                splitted = prescribers[cpt].split(' ')
+                for data in splitted:
+                    if data.isupper():
+                        lastname = data
+                    else:
+                        firstname += data.capitalize() + ' '
+            else:
+                splitted = prescribers[cpt].split(' ')
+                lastname = splitted[0]
+                firstname = splitted[1] if len(splitted) > 1 else ''
+            return [lastname.strip(), firstname.strip()]
+    return ['', '']
 
 
 def find_adeli():
@@ -163,19 +165,21 @@ def find_adeli():
 
 def find_rpps():
     data = FindRPPS(text_with_conf, log, locale, ocr).run()
+    if data and len(data) >= 1:
+        data = data[0]
     return data
 
 
 def find_sociale_security_number():
-    data = FindSecu(text_with_conf, log, locale, ocr).run()
+    data = FindNir(text_with_conf, log, locale, ocr).run()
     return data
 
 
 if __name__ == '__main__':
     # Set up the global settings
     min_char_num = 280
-    prescription_path = '/home/nathan/ordo30k/'
-    data_ordos = '/home/nathan/dataordo30k.csv'
+    prescription_path = '/home/nathan/Bureau/ordo30k/'
+    data_ordos = '/home/nathan/Bureau/dataordo30k-avec-cabinetid.csv'
     csv_export = 'export.csv'
     log = Log('../bin/log/CBA.log', None)
     ocr = PyTesseract('fra', log, '/var/www/html/opencapture_runtime/')
@@ -190,85 +194,86 @@ if __name__ == '__main__':
                          'PRESCRIBER_LAST_NAME', 'PATIENT_BIRTH_DATE', 'PATIENT_SOCIALE_SECURITY',
                          'PATIENT_FIRST_NAME', 'PATIENT_LAST_NAME', 'PROCESS_TIME', 'PRESCRIBER_FIRST_NAME_PERCENTAGE',
                          'PRESCRIBER_LAST_NAME_PERCENTAGE', 'PATIENT_FIRST_NAME_PERCENTAGE', 'PATIENT_LAST_NAME_PERCENTAGE',
-                         'ADELI_PERCENTAGE', 'RPPS_PERCENTAGE', 'GLOBAL_PERCENTAGE', 'RAW_CONTENT'])
+                         'ADELI_PERCENTAGE', 'RPPS_PERCENTAGE', 'GLOBAL_PERCENTAGE', 'CABINET_ID', 'RAW_CONTENT'])
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
         if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '39 066 476.jpg':
-            start = time.time()
-            # Set up data about the prescription
-            file = prescription_path + prescription
-            image_content = Image.open(file)
-            # text_lines = ocr.line_box_builder(image_content)
-            text_with_conf = ocr.image_to_text_with_conf(image_content)
+            if cpt >= 23208:
+                start = time.time()
+                # Set up data about the prescription
+                file = prescription_path + prescription
+                image_content = Image.open(file)
+                # text_lines = ocr.line_box_builder(image_content)
+                text_with_conf = ocr.image_to_text_with_conf(image_content)
+                char_count = 0
+                for line in text_with_conf:
+                    char_count += len(line['text'])
 
-            char_count = 0
-            for line in text_with_conf:
-                char_count += len(line['text'])
+                if char_count > min_char_num:
+                    cpt = cpt + 1
+                else:
+                    continue
+                if char_count > min_char_num:
+                    # Retrieve all the information
+                    prescription_date, birth_date = find_date()
+                    patient_lastname, patient_firstname = find_patient(birth_date)
+                    prescriber_lastname, prescriber_firstname = find_prescriber(text_with_conf, log, locale, ocr)
+                    adeli_number = find_adeli()
+                    rpps_number = find_rpps()
+                    sociale_security_number = find_sociale_security_number()
 
-            if char_count > min_char_num:
-                cpt = cpt + 1
-            else:
-                continue
-            if char_count > min_char_num:
-                # Retrieve all the information
-                prescription_date, birth_date = find_date()
-                patient_lastname, patient_firstname = find_patient(birth_date)
-                prescriber_lastname, prescriber_firstname = find_prescriber()
-                adeli_number = find_adeli()
-                rpps_number = find_rpps()
-                sociale_security_number = find_sociale_security_number()
+                    # Check the number of informations not found. if >= 7, do not write it on CSV
+                    number_of_empty = 0
+                    for t in [prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number]:
+                        if not t:
+                            number_of_empty += 1
+                    if number_of_empty < 7:
+                        print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number, sociale_security_number)
+                        with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
+                            csv_reader = csv.DictReader(csv_file, delimiter=';')
+                            line_count = 0
+                            for row in csv_reader:
+                                if line_count != 0:
+                                    number = 7
+                                    if row['id'].replace(' ', '') == os.path.splitext(prescription)[0].replace(' ', ''):
+                                        if not row['date_prescription']:
+                                            number -= 1
+                                        if not row['prenom']:
+                                            number -= 1
+                                        if not row['nom']:
+                                            number -= 1
+                                        if not row['numero_adeli_cle']:
+                                            number -= 1
+                                        if not row['numero_rpps_cle']:
+                                            number -= 1
+                                        if not row['prenom_1']:
+                                            number -= 1
+                                        if not row['nom_1']:
+                                            number -= 1
 
-                # Check the number of informations not found. if >= 7, do not write it on CSV
-                number_of_empty = 0
-                for t in [prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number]:
-                    if not t:
-                        number_of_empty += 1
-                if number_of_empty < 7:
-                    print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number, sociale_security_number)
-                    with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
-                        csv_reader = csv.DictReader(csv_file, delimiter=';')
-                        line_count = 0
-                        for row in csv_reader:
-                            if line_count != 0:
-                                number = 7
-                                if row['id'] == os.path.splitext(prescription)[0].replace(' ', ''):
-                                    if not row['date_prescription']:
-                                        number -= 1
-                                    if not row['prenom']:
-                                        number -= 1
-                                    if not row['nom']:
-                                        number -= 1
-                                    if not row['numero_adeli_cle']:
-                                        number -= 1
-                                    if not row['numero_rpps_cle']:
-                                        number -= 1
-                                    if not row['prenom_1']:
-                                        number -= 1
-                                    if not row['nom_1']:
-                                        number -= 1
+                                        date_prescription_percentage = fuzz.ratio(row['date_prescription'], prescription_date)
+                                        prescriber_firstname_percentage = fuzz.ratio(row['prenom'], prescriber_firstname)
+                                        prescriber_lastname_percentage = fuzz.ratio(row['nom'], prescriber_lastname)
+                                        adeli_percentage = fuzz.ratio(row['numero_adeli_cle'], adeli_number)
+                                        rpps_percentage = fuzz.ratio(row['numero_rpps_cle'], rpps_number)
+                                        patient_firstname_percentage = fuzz.ratio(row['prenom_1'], patient_firstname)
+                                        patient_lastname_percentage = fuzz.ratio(row['nom_1'], patient_lastname)
+                                        cabinet_id = row['cabinet_id']
+                                        global_percentage = (prescriber_lastname_percentage + prescriber_firstname_percentage + adeli_percentage + rpps_percentage + patient_lastname_percentage + patient_firstname_percentage) / number
+                                line_count += 1
 
-                                    date_prescription_percentage = fuzz.ratio(row['date_prescription'], prescription_date)
-                                    prescriber_firstname_percentage = fuzz.ratio(row['prenom'], prescriber_firstname)
-                                    prescriber_lastname_percentage = fuzz.ratio(row['nom'], prescriber_lastname)
-                                    adeli_percentage = fuzz.ratio(row['numero_adeli_cle'], adeli_number)
-                                    rpps_percentage = fuzz.ratio(row['numero_rpps_cle'], rpps_number)
-                                    patient_firstname_percentage = fuzz.ratio(row['prenom_1'], patient_firstname)
-                                    patient_lastname_percentage = fuzz.ratio(row['nom_1'], patient_lastname)
-                                    global_percentage = (prescriber_lastname_percentage + prescriber_firstname_percentage + adeli_percentage + rpps_percentage + patient_lastname_percentage + patient_firstname_percentage) / number
-                            line_count += 1
+                        # Get raw text from lines to store them in CSV
+                        raw_content = ''
+                        for line in text_with_conf:
+                            raw_content += line['text'] + "\n"
 
-                    # Get raw text from lines to store them in CSV
-                    raw_content = ''
-                    for line in text_with_conf:
-                        raw_content += line['text'] + "\n"
-
-                    # Write on the CSV file
-                    end = time.time()
-                    csv_writer.writerow([file, adeli_number, rpps_number, prescription_date, prescriber_lastname,
-                                         prescriber_firstname, birth_date, sociale_security_number, patient_firstname,
-                                         patient_lastname, timer(start, end), int(prescriber_firstname_percentage), int(prescriber_lastname_percentage),
-                                         int(patient_firstname_percentage), int(patient_lastname_percentage), int(adeli_percentage), int(rpps_percentage), int(global_percentage),
-                                         raw_content])
+                        # Write on the CSV file
+                        end = time.time()
+                        csv_writer.writerow([file, adeli_number, rpps_number, prescription_date, prescriber_lastname,
+                                             prescriber_firstname, birth_date, sociale_security_number, patient_firstname,
+                                             patient_lastname, timer(start, end), int(prescriber_firstname_percentage), int(prescriber_lastname_percentage),
+                                             int(patient_firstname_percentage), int(patient_lastname_percentage), int(adeli_percentage), int(rpps_percentage), int(global_percentage),
+                                             cabinet_id, raw_content])
             cpt = cpt + 1
     csv_file.close()

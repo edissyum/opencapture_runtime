@@ -18,6 +18,8 @@
 import os
 import re
 import time
+import json
+import redis
 import base64
 from PIL import Image
 from datetime import date
@@ -27,10 +29,10 @@ from src.classes.Log import Log
 from src.classes.SMTP import SMTP
 from src.classes.Config import Config
 from src.classes.Locale import Locale
+from src.process.FindNir import FindNir
 from src.classes.Database import Database
 from src.process.FindDate import FindDate
 from src.process.FindRPPS import FindRPPS
-from src.process.FindSecu import FindSecu
 from src.process.FindAdeli import FindAdeli
 from src.process.FindPerson import FindPerson
 from src.classes.PyTesseract import PyTesseract
@@ -80,7 +82,7 @@ def get_near_words(arrayOfLine, zipCode, rangeX=20, rangeY=29, maxRangeX=200, ma
     patient_name = re.sub(r"(N(É|E|Ê|é|ê)(T)?(\(?E\)?)?\s*((L|1)E)?)|DATE\s*DE\s*NAISSANCE", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"\s+le\s+", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/\d{4}", '', patient_name, flags=re.IGNORECASE)
-    patient_name = re.sub(r"[=‘|!,*)@#%(&$_?.^:\[\]0-9]", '', patient_name, flags=re.IGNORECASE)
+    patient_name = re.sub(r"[/=‘|!,*)@#%(&$_?.^:\[\]0-9]", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"N°-", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"((I|F)dentifica(t|l)ion)?\s*Du\s*Pa(ñ|T)(i)?ent", '', patient_name, flags=re.IGNORECASE)
     return patient_name.strip()
@@ -128,12 +130,15 @@ def find_date(dateProcess, text_with_conf, prescription_time_delta):
     return _date, date_birth
 
 
-def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content):
+def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, cabinet_id):
     firstname, lastname = '', ''
+    patients = []
     patient = FindPerson(text_with_conf, log, locale, ocr).run()
-    if date_birth and patient is None:
-        text_words = ocr.word_box_builder(image_content)
-        patient = search_patient_from_birth_date(date_birth, text_words)
+    nir = FindNir(text_with_conf, log, locale, ocr).run()
+
+    # if date_birth and patient is None:
+    #     text_words = ocr.word_box_builder(image_content)
+    #     patient = search_patient_from_birth_date(date_birth, text_words)
 
     if patient:
         if not patient.isupper():
@@ -147,13 +152,32 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content):
             splitted = patient.split(' ')
             lastname = splitted[0]
             firstname = splitted[1] if len(splitted) > 1 else ''
-    return [lastname.strip(), firstname.strip()]
+
+    if nir or (lastname and firstname) or date_birth:
+        r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        patients_cabinet = r.get('patient_cabinet_' + cabinet_id)
+        if patients_cabinet:
+            if date_birth:
+                date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
+            for _patient in json.loads(patients_cabinet):
+                if (nir and nir == _patient['nir']) or \
+                   ((date_birth and not nir and not lastname and not firstname) and date_birth == _patient['date_naissance']) or \
+                   ((lastname and date_birth) and lastname.lower() == _patient['nom'] and date_birth == _patient['date_naissance']) or \
+                   ((firstname and date_birth) and firstname.lower() == _patient['prenom'] and date_birth == _patient['date_naissance']) or \
+                   ((lastname and nir) and lastname.lower() == _patient['nom'].lower() and nir == _patient['nir']) or \
+                   ((firstname and nir) and firstname.lower() == _patient['prenom'].lower() and nir == _patient['nir']) or \
+                   ((firstname and lastname) and firstname.lower() == _patient['prenom'].lower() and lastname.lower() == _patient['nom'].lower()):
+                    _patient['date_naissance'] = datetime.strptime(_patient['date_naissance'], '%Y%m%d').strftime('%d/%m/%Y')
+                    patients.append(_patient)
+    return patients
 
 
 def find_prescribers(text_with_conf, log, locale, ocr, database):
     ps_list = []
+    prescriber_found = False
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
+    adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
 
     if prescribers:
         for cpt in range(0, len(prescribers)):
@@ -179,30 +203,32 @@ def find_prescribers(text_with_conf, log, locale, ocr, database):
                     'limit': 1
                 })
                 if info:
+                    prescriber_found = True
                     ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': rpps_numbers[cpt], 'adeli': info[0]['numero_adeli_cle']})
-                else:
-                    ps_list.append({'id': None, 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'rpps': rpps_numbers[cpt]})
-            else:
-                ps_list.append({'id': None, 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'rpps': rpps_numbers[cpt]})
+
+            if not prescriber_found:
+                if adeli_numbers[cpt]:
+                    info = database.select({
+                        'select': ['id', 'nom', 'prenom', 'numero_rpps_cle'],
+                        'table': ['application.praticien'],
+                        'where': ['numero_adeli_cle = %s'],
+                        'data': [adeli_numbers[cpt]],
+                        'limit': 1
+                    })
+                    prescriber_found = True
+                    ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': info[0]['numero_rpps_cle'], 'adeli': adeli_numbers[cpt]})
+
+            if not prescriber_found:
+                ps_list.append({'id': '', 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'rpps': rpps_numbers[cpt]})
     return ps_list
-
-
-def find_adeli(text_with_conf, log, locale, ocr):
-    data = FindAdeli(text_with_conf, log, locale, ocr).run()
-    return data
-
-
-def find_sociale_security_number(text_with_conf, log, locale, ocr):
-    data = FindSecu(text_with_conf, log, locale, ocr).run()
-    return data
 
 
 def run(args):
     if 'fileContent' not in args or 'cabinetId' not in args:
         return False, "Il manque une ou plusieurs donnée(s) obligatoire(s)", 400
 
-    file_content = args['fileContent']
     cabinet_id = args['cabinetId']
+    file_content = args['fileContent']
 
     path = current_app.config['PATH']
     file = path + '/' + generate_tmp_filename()
@@ -246,28 +272,11 @@ def run(args):
 
         if char_count > min_char_num:
             prescription_date, birth_date = find_date(dateProcess, text_with_conf, prescription_time_delta)
-            patient_lastname, patient_firstname = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content)
+            patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id)
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database)
-            adeli_number = find_adeli(text_with_conf, log, locale, ocr)
-            sociale_security_number = find_sociale_security_number(text_with_conf, log, locale, ocr)
-
-            patients_list = database.select({
-                'select': ['nom', 'prenom', 'date_naissance', 'nir'],
-                'table': ['application.patient'],
-                'where': ['cabinet_id = %s'],
-                'data': [cabinet_id]
-            })
 
             _data = {
-                'patients': [
-                    {
-                        'patient_id': 1,
-                        'patient_nir': sociale_security_number,
-                        'patient_birth_date': birth_date,
-                        'patient_lastname': patient_lastname,
-                        'patient_firstname': patient_firstname,
-                    }
-                ],
+                'patients': patients,
                 'prescribers': prescribers,
                 'acte': None,
                 'description': None,

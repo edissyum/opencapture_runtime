@@ -18,7 +18,7 @@
 import re
 
 
-class FindSecu:
+class FindNir:
     def __init__(self, text, log, locale, ocr):
         self.date = ''
         self.Log = log

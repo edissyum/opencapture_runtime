@@ -71,7 +71,7 @@ class FindRPPS:
             line = re.sub(pattern, item, line)
 
         line = line.replace('/', '').replace(' ', '').replace('-', '')
-        for _rpps in re.finditer(r"[0-9]{11}", line):
+        for _rpps in re.finditer(r"\d{11}", line):
             data = _rpps.group()
             if data and self.rpps_verification(data):
                 _rrps.append(data)
@@ -81,4 +81,5 @@ class FindRPPS:
         for line in self.text:
             res = self.process(line['text'].upper())
             if res:
+                self.Log.info('RPPS number found : ' + str(res))
                 return res
