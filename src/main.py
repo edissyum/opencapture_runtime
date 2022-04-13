@@ -3,11 +3,13 @@
 #      Décembre 2021     #
 #      Nathan CHEVAL     #
 ##########################
-
+import json
 import os
 import re
 import csv
 import time
+
+import redis
 from PIL import Image
 from thefuzz import fuzz
 from datetime import date
@@ -21,6 +23,8 @@ from process.FindAdeli import FindAdeli
 from process.FindPerson import FindPerson
 from classes.PyTesseract import PyTesseract
 from process.FindPrescriber import FindPrescriber
+from src.classes.Config import Config
+from src.classes.Database import Database
 
 
 def timer(start_time, end_time):
@@ -66,6 +70,7 @@ def get_near_words(arrayOfLine, zipCode, rangeX=20, rangeY=29, maxRangeX=200, ma
 
     patient_name = re.sub(r"(N(É|E|Ê|é|ê)(T)?(\(?E\)?)?\s*((L|1)E)?)|DATE\s*DE\s*NAISSANCE", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"\s+le\s+", '', patient_name, flags=re.IGNORECASE)
+    patient_name = re.sub(r"((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/\d{4}", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"[=‘|!,*)@#%(&$_?.^:\[\]0-9]", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"N°-", '', patient_name, flags=re.IGNORECASE)
@@ -97,14 +102,14 @@ def search_patient_from_birth_date(date_birth, text_words):
 
 
 def find_date():
-    dateProcess.prescriptionDate = None
-    dateProcess.timeDelta = prescription_time_delta
+    date_process.prescriptionDate = None
+    date_process.timeDelta = prescription_time_delta
     log.info("Traitement de l'ordonnance " + prescription)
-    dateProcess.text = text_with_conf
-    _date = dateProcess.run()
-    dateProcess.prescriptionDate = _date
-    dateProcess.timeDelta = 0
-    date_birth = dateProcess.run()
+    date_process.text = text_with_conf
+    _date = date_process.run()
+    date_process.prescriptionDate = _date
+    date_process.timeDelta = 0
+    date_birth = date_process.run()
 
     if date_birth:
         if _date and datetime.strptime(date_birth, '%d/%m/%Y') > datetime.strptime(_date, '%d/%m/%Y'):
@@ -116,9 +121,13 @@ def find_date():
     return _date, date_birth
 
 
-def find_patient(date_birth):
+def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, cabinet_id):
     firstname, lastname = '', ''
+    patients = []
+    patient_found = False
     patient = FindPerson(text_with_conf, log, locale, ocr).run()
+    nir = FindNir(text_with_conf, log, locale, ocr).run()
+
     if date_birth and patient is None:
         text_words = ocr.word_box_builder(image_content)
         patient = search_patient_from_birth_date(date_birth, text_words)
@@ -128,18 +137,73 @@ def find_patient(date_birth):
             splitted = patient.split(' ')
             for data in splitted:
                 if data.isupper():
-                    lastname = data
+                    lastname = data.strip()
                 else:
-                    firstname += data.capitalize() + ' '
+                    firstname += data.strip().capitalize() + ' '
+            firstname = firstname.strip()
+            lastname = lastname.strip()
         else:
             splitted = patient.split(' ')
-            lastname = splitted[0]
-            firstname = splitted[1] if len(splitted) > 1 else ''
-    return [lastname.strip(), firstname.strip()]
+            lastname = splitted[0].strip()
+            firstname = splitted[1].strip() if len(splitted) > 1 else ''
+
+    if nir or (lastname and firstname) or date_birth:
+        r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
+        if patients_cabinet:
+            if date_birth:
+                date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
+            for _patient in json.loads(patients_cabinet):
+                if (nir and nir == _patient['nir']) or \
+                   ((date_birth and not nir and not lastname and not firstname) and date_birth == _patient['date_naissance']) or \
+                   ((lastname and date_birth) and lastname.lower() == _patient['nom'] and date_birth == _patient['date_naissance']) or \
+                   ((firstname and date_birth) and firstname.lower() == _patient['prenom'] and date_birth == _patient['date_naissance']) or \
+                   ((lastname and nir) and lastname.lower() == _patient['nom'].lower() and nir == _patient['nir']) or \
+                   ((firstname and nir) and firstname.lower() == _patient['prenom'].lower() and nir == _patient['nir']) or \
+                   ((firstname and lastname) and firstname.lower() == _patient['prenom'].lower() and lastname.lower() == _patient['nom'].lower()):
+                    patient_found = True
+                    _patient['date_naissance'] = datetime.strptime(_patient['date_naissance'], '%Y%m%d').strftime('%d/%m/%Y')
+                    patients.append({'id': _patient['id'], 'firstname': _patient['prenom'].strip(), 'lastname': _patient['nom'], 'birth_date': _patient['date_naissance'], 'nir': _patient['nir']})
+
+        if not patient_found:
+            patients.append({
+                'id': None,
+                'firstname': firstname,
+                'lastname': lastname,
+                'date_naissance': date_birth,
+                'nir': nir
+            })
+    return patients
 
 
-def find_prescriber(text_with_conf, log, locale, ocr):
+# def find_patient(date_birth):
+#     firstname, lastname = '', ''
+#     patient = FindPerson(text_with_conf, log, locale, ocr).run()
+#     if date_birth and patient is None:
+#         text_words = ocr.word_box_builder(image_content)
+#         patient = search_patient_from_birth_date(date_birth, text_words)
+#
+#     if patient:
+#         if not patient.isupper():
+#             splitted = patient.split(' ')
+#             for data in splitted:
+#                 if data.isupper():
+#                     lastname = data
+#                 else:
+#                     firstname += data.capitalize() + ' '
+#         else:
+#             splitted = patient.split(' ')
+#             lastname = splitted[0]
+#             firstname = splitted[1] if len(splitted) > 1 else ''
+#     return [lastname.strip(), firstname.strip()]
+
+
+def find_prescribers(text_with_conf, log, locale, ocr, database):
+    ps_list = []
+    prescriber_found = False
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
+    rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
+    adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
     if prescribers:
         for cpt in range(0, len(prescribers)):
             firstname = lastname = ''
@@ -147,19 +211,80 @@ def find_prescriber(text_with_conf, log, locale, ocr):
                 splitted = prescribers[cpt].split(' ')
                 for data in splitted:
                     if data.isupper():
-                        lastname = data
+                        lastname = data.strip()
                     else:
-                        firstname += data.capitalize() + ' '
+                        firstname += data.strip().capitalize() + ' '
+                firstname = firstname.strip()
+                lastname = lastname.strip()
             else:
                 splitted = prescribers[cpt].split(' ')
-                lastname = splitted[0]
-                firstname = splitted[1] if len(splitted) > 1 else ''
-            return [lastname.strip(), firstname.strip()]
-    return ['', '']
+                lastname = splitted[0].strip()
+                firstname = splitted[1].strip() if len(splitted) > 1 else ''
+
+            if rpps_numbers and cpt == len(rpps_numbers) - 1 and rpps_numbers[cpt]:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_adeli_cle'],
+                    'table': ['application.praticien'],
+                    'where': ['numero_rpps_cle = %s'],
+                    'data': [rpps_numbers[cpt]],
+                    'limit': 1
+                })
+                if info:
+                    prescriber_found = True
+                    ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': rpps_numbers[cpt], 'adeli': info[0]['numero_adeli_cle']})
+
+            if not prescriber_found and adeli_numbers and cpt == len(adeli_numbers) - 1 and adeli_numbers[cpt]:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_rpps_cle'],
+                    'table': ['application.praticien'],
+                    'where': ['numero_adeli_cle = %s'],
+                    'data': [adeli_numbers[cpt]],
+                    'limit': 1
+                })
+                if info:
+                    prescriber_found = True
+                    ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': info[0]['numero_rpps_cle'], 'adeli': adeli_numbers[cpt]})
+
+            if not prescriber_found and firstname and lastname:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_idfact_cle', 'numero_rpps_cle'],
+                    'table': ['sesam.prescripteur'],
+                    'where': ['(nom ILIKE %s AND prenom ILIKE %s) OR (prenom ILIKE %s AND nom ILIKE %s)'],
+                    'data': [lastname, firstname, lastname, firstname],
+                    'limit': 1
+                })
+                if info:
+                    prescriber_found = True
+                    ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': info[0]['numero_rpps_cle'], 'adeli': info[0]['numero_idfact_cle']})
+
+            if not prescriber_found:
+                ps_list.append({'id': '', 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'adeli': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else '', 'rpps': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else ''})
+    return ps_list
+
+# def find_prescriber(text_with_conf, log, locale, ocr):
+#     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
+#     if prescribers:
+#         for cpt in range(0, len(prescribers)):
+#             firstname = lastname = ''
+#             if not prescribers[cpt].isupper():
+#                 splitted = prescribers[cpt].split(' ')
+#                 for data in splitted:
+#                     if data.isupper():
+#                         lastname = data
+#                     else:
+#                         firstname += data.capitalize() + ' '
+#             else:
+#                 splitted = prescribers[cpt].split(' ')
+#                 lastname = splitted[0]
+#                 firstname = splitted[1] if len(splitted) > 1 else ''
+#             return [lastname.strip(), firstname.strip()]
+#     return ['', '']
 
 
 def find_adeli():
     data = FindAdeli(text_with_conf, log, locale, ocr).run()
+    if data and len(data) >= 1:
+        data = data[0]
     return data
 
 
@@ -177,103 +302,106 @@ def find_sociale_security_number():
 
 if __name__ == '__main__':
     # Set up the global settings
-    min_char_num = 280
-    prescription_path = '/home/nathan/Bureau/ordo30k/'
-    data_ordos = '/home/nathan/Bureau/dataordo30k-avec-cabinetid.csv'
+    prescription_path = '/home/nathan/Bureau/EXPORT_CBA/ORDOS/'
+    data_ordos = '/home/nathan/Bureau/EXPORT_CBA/ordo_in.csv'
     csv_export = 'export.csv'
     log = Log('../bin/log/CBA.log', None)
     ocr = PyTesseract('fra', log, '/var/www/html/opencapture_runtime/')
     locale = Locale('/var/www/html/opencapture_runtime/')
-    prescription_time_delta = 2190  # 6 ans max pour les dates d'ordonnance
-    dateProcess = FindDate('', log, locale, prescription_time_delta)
     csv_file = open(csv_export, 'w')
     csv_writer = csv.writer(csv_file, delimiter=';')
-
+    config = Config('/var/www/html/opencapture_runtime/config/modules/ordonnances/config.ini')
+    database = Database(log, config.cfg['DATABASE'])
+    min_char = config.cfg['GLOBAL']['min_char']
+    prescription_time_delta = config.cfg['GLOBAL']['prescription_time_delta']
+    date_process = FindDate('', log, locale, prescription_time_delta)
     # Write headers of the CSV
     csv_writer.writerow(['FILE', 'ADELI', 'RPPS', 'PRESCRIPTION_DATE', 'PRESCRIBER_FIRST_NAME',
                          'PRESCRIBER_LAST_NAME', 'PATIENT_BIRTH_DATE', 'PATIENT_SOCIALE_SECURITY',
                          'PATIENT_FIRST_NAME', 'PATIENT_LAST_NAME', 'PROCESS_TIME', 'PRESCRIBER_FIRST_NAME_PERCENTAGE',
                          'PRESCRIBER_LAST_NAME_PERCENTAGE', 'PATIENT_FIRST_NAME_PERCENTAGE', 'PATIENT_LAST_NAME_PERCENTAGE',
-                         'ADELI_PERCENTAGE', 'RPPS_PERCENTAGE', 'GLOBAL_PERCENTAGE', 'CABINET_ID', 'RAW_CONTENT'])
+                         'ADELI_PERCENTAGE', 'RPPS_PERCENTAGE', 'GLOBAL_PERCENTAGE', 'CABINET_ID'])
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '39 066 476.jpg':
-            if cpt >= 23208:
-                start = time.time()
-                # Set up data about the prescription
-                file = prescription_path + prescription
-                image_content = Image.open(file)
-                # text_lines = ocr.line_box_builder(image_content)
-                text_with_conf = ocr.image_to_text_with_conf(image_content)
-                char_count = 0
-                for line in text_with_conf:
-                    char_count += len(line['text'])
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '32 820 065.jpg':
+            start = time.time()
+            print(prescription)
+            # Set up data about the prescription
+            file = prescription_path + prescription
+            image_content = Image.open(file)
+            # text_lines = ocr.line_box_builder(image_content)
+            text_with_conf = ocr.image_to_text_with_conf(image_content)
+            char_count = 0
+            for line in text_with_conf:
+                char_count += len(line['text'])
 
-                if char_count > min_char_num:
-                    cpt = cpt + 1
-                else:
-                    continue
-                if char_count > min_char_num:
-                    # Retrieve all the information
-                    prescription_date, birth_date = find_date()
-                    patient_lastname, patient_firstname = find_patient(birth_date)
-                    prescriber_lastname, prescriber_firstname = find_prescriber(text_with_conf, log, locale, ocr)
-                    adeli_number = find_adeli()
-                    rpps_number = find_rpps()
-                    sociale_security_number = find_sociale_security_number()
+            if int(char_count) < int(min_char):
+                continue
 
-                    # Check the number of informations not found. if >= 7, do not write it on CSV
-                    number_of_empty = 0
-                    for t in [prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number]:
-                        if not t:
-                            number_of_empty += 1
-                    if number_of_empty < 7:
-                        print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patient_lastname, patient_firstname, prescriber_lastname, prescriber_firstname, adeli_number, rpps_number, sociale_security_number)
-                        with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
-                            csv_reader = csv.DictReader(csv_file, delimiter=';')
-                            line_count = 0
-                            for row in csv_reader:
-                                if line_count != 0:
-                                    number = 7
-                                    if row['id'].replace(' ', '') == os.path.splitext(prescription)[0].replace(' ', ''):
-                                        if not row['date_prescription']:
-                                            number -= 1
-                                        if not row['prenom']:
-                                            number -= 1
-                                        if not row['nom']:
-                                            number -= 1
-                                        if not row['numero_adeli_cle']:
-                                            number -= 1
-                                        if not row['numero_rpps_cle']:
-                                            number -= 1
-                                        if not row['prenom_1']:
-                                            number -= 1
-                                        if not row['nom_1']:
-                                            number -= 1
+            if int(char_count) > int(min_char):
+                # Retrieve all the information
+                with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
+                    csv_reader = csv.DictReader(csv_file, delimiter=';')
+                    for row in csv_reader:
+                        if row['id'].replace(' ', '') == os.path.splitext(prescription)[0].replace(' ', ''):
+                            cabinet_id = row['cabinet_id']
 
-                                        date_prescription_percentage = fuzz.ratio(row['date_prescription'], prescription_date)
-                                        prescriber_firstname_percentage = fuzz.ratio(row['prenom'], prescriber_firstname)
-                                        prescriber_lastname_percentage = fuzz.ratio(row['nom'], prescriber_lastname)
-                                        adeli_percentage = fuzz.ratio(row['numero_adeli_cle'], adeli_number)
-                                        rpps_percentage = fuzz.ratio(row['numero_rpps_cle'], rpps_number)
-                                        patient_firstname_percentage = fuzz.ratio(row['prenom_1'], patient_firstname)
-                                        patient_lastname_percentage = fuzz.ratio(row['nom_1'], patient_lastname)
-                                        cabinet_id = row['cabinet_id']
-                                        global_percentage = (prescriber_lastname_percentage + prescriber_firstname_percentage + adeli_percentage + rpps_percentage + patient_lastname_percentage + patient_firstname_percentage) / number
-                                line_count += 1
+                prescription_date, birth_date = find_date()
+                patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id)
+                prescribers = find_prescribers(text_with_conf, log, locale, ocr, database)
+                if not patients:
+                    patients = [{'id': '', 'firstname': '', 'lastname': '', 'nir': ''}]
+                if not prescribers:
+                    prescribers = [{'id': '', 'firstname': '', 'lastname': '', 'rpps': '', 'adeli': ''}]
+                print(cabinet_id)
+                print('patients : ', patients)
+                print('prescribers : ', prescribers)
+                print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patients[0]['lastname'], patients[0]['firstname'], prescribers[0]['lastname'], prescribers[0]['firstname'], prescribers[0]['adeli'], prescribers[0]['rpps'], patients[0]['nir'])
+                with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
+                    csv_reader = csv.DictReader(csv_file, delimiter=';')
+                    line_count = 0
+                    for row in csv_reader:
+                        if line_count != 0:
+                            number = 7
+                            if row['id'].replace(' ', '') == os.path.splitext(prescription)[0].replace(' ', ''):
+                                if not row['date_prescription']:
+                                    number -= 1
+                                if not row['prenom']:
+                                    number -= 1
+                                if not row['nom']:
+                                    number -= 1
+                                if not row['numero_adeli_cle']:
+                                    number -= 1
+                                if not row['numero_rpps_cle']:
+                                    number -= 1
+                                if not row['prenom_1']:
+                                    number -= 1
+                                if not row['nom_1']:
+                                    number -= 1
 
-                        # Get raw text from lines to store them in CSV
-                        raw_content = ''
-                        for line in text_with_conf:
-                            raw_content += line['text'] + "\n"
+                                date_prescription_percentage = fuzz.ratio(row['date_prescription'], prescription_date)
+                                prescriber_firstname_percentage = fuzz.ratio(row['prenom'], prescribers[0]['firstname'])
+                                prescriber_lastname_percentage = fuzz.ratio(row['nom'], prescribers[0]['lastname'])
+                                adeli_percentage = fuzz.ratio(row['numero_adeli_cle'], prescribers[0]['adeli'])
+                                rpps_percentage = fuzz.ratio(row['numero_rpps_cle'], prescribers[0]['rpps'])
+                                patient_firstname_percentage = fuzz.ratio(row['prenom_1'], patients[0]['firstname'])
+                                patient_lastname_percentage = fuzz.ratio(row['nom_1'], patients[0]['lastname'])
+                                cabinet_id = row['cabinet_id']
+                                global_percentage = (prescriber_lastname_percentage + prescriber_firstname_percentage + adeli_percentage + rpps_percentage + patient_lastname_percentage + patient_firstname_percentage) / number
+                        line_count += 1
 
-                        # Write on the CSV file
-                        end = time.time()
-                        csv_writer.writerow([file, adeli_number, rpps_number, prescription_date, prescriber_lastname,
-                                             prescriber_firstname, birth_date, sociale_security_number, patient_firstname,
-                                             patient_lastname, timer(start, end), int(prescriber_firstname_percentage), int(prescriber_lastname_percentage),
-                                             int(patient_firstname_percentage), int(patient_lastname_percentage), int(adeli_percentage), int(rpps_percentage), int(global_percentage),
-                                             cabinet_id, raw_content])
+                # Get raw text from lines to store them in CSV
+                # raw_content = ''
+                # for line in text_with_conf:
+                #     raw_content += line['text'] + "\n"
+
+                # Write on the CSV file
+                end = time.time()
+                csv_writer.writerow([file, prescribers[0]['adeli'], prescribers[0]['rpps'], prescription_date, prescribers[0]['lastname'],
+                                     prescribers[0]['firstname'], birth_date, patients[0]['nir'], patients[0]['firstname'],
+                                     patients[0]['lastname'], timer(start, end), int(prescriber_firstname_percentage), int(prescriber_lastname_percentage),
+                                     int(patient_firstname_percentage), int(patient_lastname_percentage), int(adeli_percentage), int(rpps_percentage), int(global_percentage),
+                                     cabinet_id])
             cpt = cpt + 1
     csv_file.close()

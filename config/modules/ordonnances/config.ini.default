@@ -1,6 +1,12 @@
+[GLOBAL]
+; Nombre de caractères minimale dans une ordonnance pour la traiter
+min_char = 280
+; Prescription_time_delta : Nombre de jours maximals pour la récupération d'une date d'ordonnance
+prescription_time_delta = 2190
+
 [DATABASE]
-postgreshost =
-postgresport =
-postgresdatabase =
-postgresuser =
-postgrespassword =
+postgres_host =
+postgres_port =
+postgres_database =
+postgres_user =
+postgres_password =

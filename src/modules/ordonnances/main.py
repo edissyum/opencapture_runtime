@@ -80,6 +80,7 @@ def get_near_words(arrayOfLine, zipCode, rangeX=20, rangeY=29, maxRangeX=200, ma
         patient_name = patient[0]
 
     patient_name = re.sub(r"(N(É|E|Ê|é|ê)(T)?(\(?E\)?)?\s*((L|1)E)?)|DATE\s*DE\s*NAISSANCE", '', patient_name, flags=re.IGNORECASE)
+    patient_name = re.sub(r"((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"\s+le\s+", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/\d{4}", '', patient_name, flags=re.IGNORECASE)
     patient_name = re.sub(r"[/=‘|!,*)@#%(&$_?.^:\[\]0-9]", '', patient_name, flags=re.IGNORECASE)
@@ -133,29 +134,32 @@ def find_date(dateProcess, text_with_conf, prescription_time_delta):
 def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, cabinet_id):
     firstname, lastname = '', ''
     patients = []
+    patient_found = False
     patient = FindPerson(text_with_conf, log, locale, ocr).run()
     nir = FindNir(text_with_conf, log, locale, ocr).run()
 
-    # if date_birth and patient is None:
-    #     text_words = ocr.word_box_builder(image_content)
-    #     patient = search_patient_from_birth_date(date_birth, text_words)
+    if date_birth and patient is None:
+        text_words = ocr.word_box_builder(image_content)
+        patient = search_patient_from_birth_date(date_birth, text_words)
 
     if patient:
         if not patient.isupper():
             splitted = patient.split(' ')
             for data in splitted:
                 if data.isupper():
-                    lastname = data
+                    lastname = data.strip()
                 else:
-                    firstname += data.capitalize() + ' '
+                    firstname += data.strip().capitalize() + ' '
+            firstname = firstname.strip()
+            lastname = lastname.strip()
         else:
             splitted = patient.split(' ')
-            lastname = splitted[0]
-            firstname = splitted[1] if len(splitted) > 1 else ''
+            lastname = splitted[0].strip()
+            firstname = splitted[1].strip() if len(splitted) > 1 else ''
 
     if nir or (lastname and firstname) or date_birth:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        patients_cabinet = r.get('patient_cabinet_' + cabinet_id)
+        patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
         if patients_cabinet:
             if date_birth:
                 date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
@@ -167,8 +171,18 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                    ((lastname and nir) and lastname.lower() == _patient['nom'].lower() and nir == _patient['nir']) or \
                    ((firstname and nir) and firstname.lower() == _patient['prenom'].lower() and nir == _patient['nir']) or \
                    ((firstname and lastname) and firstname.lower() == _patient['prenom'].lower() and lastname.lower() == _patient['nom'].lower()):
+                    patient_found = True
                     _patient['date_naissance'] = datetime.strptime(_patient['date_naissance'], '%Y%m%d').strftime('%d/%m/%Y')
-                    patients.append(_patient)
+                    patients.append({'id': _patient['id'], 'firstname': _patient['prenom'].strip(), 'lastname': _patient['nom'], 'birth_date': _patient['date_naissance'], 'nir': _patient['nir']})
+
+        if not patient_found:
+            patients.append({
+                'id': None,
+                'firstname': firstname.strip(),
+                'lastname': lastname.strip(),
+                'date_naissance': date_birth,
+                'nir': nir
+            })
     return patients
 
 
@@ -186,15 +200,17 @@ def find_prescribers(text_with_conf, log, locale, ocr, database):
                 splitted = prescribers[cpt].split(' ')
                 for data in splitted:
                     if data.isupper():
-                        lastname = data
+                        lastname = data.strip()
                     else:
-                        firstname += data.capitalize() + ' '
+                        firstname += data.strip().capitalize() + ' '
+                firstname = firstname.strip()
+                lastname = lastname.strip()
             else:
                 splitted = prescribers[cpt].split(' ')
-                lastname = splitted[0]
-                firstname = splitted[1] if len(splitted) > 1 else ''
+                lastname = splitted[0].strip()
+                firstname = splitted[1].strip() if len(splitted) > 1 else ''
 
-            if rpps_numbers[cpt]:
+            if rpps_numbers and cpt == len(rpps_numbers) - 1 and rpps_numbers[cpt]:
                 info = database.select({
                     'select': ['id', 'nom', 'prenom', 'numero_adeli_cle'],
                     'table': ['application.praticien'],
@@ -206,20 +222,32 @@ def find_prescribers(text_with_conf, log, locale, ocr, database):
                     prescriber_found = True
                     ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': rpps_numbers[cpt], 'adeli': info[0]['numero_adeli_cle']})
 
-            if not prescriber_found:
-                if adeli_numbers[cpt]:
-                    info = database.select({
-                        'select': ['id', 'nom', 'prenom', 'numero_rpps_cle'],
-                        'table': ['application.praticien'],
-                        'where': ['numero_adeli_cle = %s'],
-                        'data': [adeli_numbers[cpt]],
-                        'limit': 1
-                    })
+            if not prescriber_found and adeli_numbers and cpt == len(adeli_numbers) - 1 and adeli_numbers[cpt]:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_rpps_cle'],
+                    'table': ['application.praticien'],
+                    'where': ['numero_adeli_cle = %s'],
+                    'data': [adeli_numbers[cpt]],
+                    'limit': 1
+                })
+                if info:
                     prescriber_found = True
                     ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': info[0]['numero_rpps_cle'], 'adeli': adeli_numbers[cpt]})
 
+            if not prescriber_found and firstname and lastname:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_idfact_cle', 'numero_rpps_cle'],
+                    'table': ['sesam.prescripteur'],
+                    'where': ['(nom ILIKE %s AND prenom ILIKE %s) OR (prenom ILIKE %s AND nom ILIKE %s)'],
+                    'data': [lastname, firstname, lastname, firstname],
+                    'limit': 1
+                })
+                if info:
+                    prescriber_found = True
+                    ps_list.append({'id': info[0]['id'], 'firstname': info[0]['prenom'].strip(), 'lastname': info[0]['nom'], 'rpps': info[0]['numero_rpps_cle'], 'adeli': info[0]['numero_idfact_cle']})
+
             if not prescriber_found:
-                ps_list.append({'id': '', 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'rpps': rpps_numbers[cpt]})
+                ps_list.append({'id': '', 'firstname': firstname.strip(), 'lastname': lastname.strip(), 'adeli': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else '', 'rpps': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else ''})
     return ps_list
 
 
@@ -237,7 +265,6 @@ def run(args):
 
     # Set up the global settings
     _ret = _data = _http_code = None
-    min_char_num = 280
     locale = Locale(path)
     config_mail = Config(path + '/config/mail.ini')
     config = Config(path + '/config/modules/ordonnances/config.ini')
@@ -257,8 +284,9 @@ def run(args):
     log = Log(path + '/bin/log/OCRunTime.log', smtp)
     database = Database(log, config.cfg['DATABASE'])
     ocr = PyTesseract('fra', log, path)
-    prescription_time_delta = 2190  # 6 ans max pour les dates d'ordonnance
-    dateProcess = FindDate('', log, locale, prescription_time_delta)
+    prescription_time_delta = config.cfg['GLOBAL']['prescription_time_delta']
+    min_char = config.cfg['GLOBAL']['min_char']
+    date_process = FindDate('', log, locale, prescription_time_delta)
 
     if os.path.splitext(file)[1] == '.jpg':
         start = time.time()
@@ -270,8 +298,8 @@ def run(args):
         for line in text_with_conf:
             char_count += len(line['text'])
 
-        if char_count > min_char_num:
-            prescription_date, birth_date = find_date(dateProcess, text_with_conf, prescription_time_delta)
+        if int(char_count) > int(min_char):
+            prescription_date, birth_date = find_date(date_process, text_with_conf, prescription_time_delta)
             patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id)
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database)
 

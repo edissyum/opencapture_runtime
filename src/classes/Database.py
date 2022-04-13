@@ -23,11 +23,11 @@ class Database:
     def __init__(self, log, db_infos, conn=None):
         self.log = log
         self.conn = conn
-        self.host = db_infos['postgreshost']
-        self.port = db_infos['postgresport']
-        self.user = db_infos['postgresuser']
-        self.pwd = db_infos['postgrespassword']
-        self.db_name = db_infos['postgresdatabase']
+        self.host = db_infos['postgres_host']
+        self.port = db_infos['postgres_port']
+        self.user = db_infos['postgres_user']
+        self.pwd = db_infos['postgres_password']
+        self.db_name = db_infos['postgres_database']
         self.connect()
 
     def connect(self):

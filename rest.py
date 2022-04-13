@@ -22,7 +22,7 @@ from src.auth import token_required, generate_token
 app = Flask(__name__)
 
 # La clé corresponds à ce qui doit être envoyé lors de l'appel au WS '/oc/getDocumentInformations' dans la variable "module"
-# La partie 'filename' contient le nom du fichier, qui doit se trouvé dans le dossier src/modules/
+# La partie 'filename' contient le nom du fichier principal du module, qui doit se trouver dans le dossier src/modules/{{clé}}/
 # La partie method contient le nom de la fonction qui sera appelé dans le WS get_document_informations pour appliquer le traitement spécifique
 app.config['MODULES'] = {
     "ordonnances": {
