@@ -148,7 +148,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             splitted = patient.split(' ')
             for data in splitted:
                 if data.isupper():
-                    lastname = data.strip()
+                    lastname += data.strip() + ' '
                 else:
                     firstname += data.strip().capitalize() + ' '
             firstname = firstname.strip()
@@ -166,8 +166,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                 date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
             for _patient in json.loads(patients_cabinet):
                 if date_birth and lastname and firstname and nir:
-                    if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) and nir == \
-                            _patient['nir']:
+                    if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) and nir == _patient['nir']:
                         patient_found = True
                         patients.append(_patient)
                         break
@@ -190,12 +189,6 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         patients.append(_patient)
                         break
 
-                if date_birth:
-                    if date_birth == _patient['date_naissance']:
-                        patient_found = True
-                        patients.append(_patient)
-                        break
-
                 if nir:
                     if nir == _patient['nir']:
                         patient_found = True
@@ -207,6 +200,17 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         patient_found = True
                         patients.append(_patient)
                         break
+                    if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= 80:
+                        patient_found = True
+                        patients.append(_patient)
+                        break
+
+                if date_birth:
+                    if date_birth == _patient['date_naissance']:
+                        patient_found = True
+                        patients.append(_patient)
+                        break
+
             if patient_found:
                 for _p in patients:
                     if _p['date_naissance']:
@@ -303,6 +307,32 @@ def find_prescribers(text_with_conf, log, locale, ocr, database):
                     'numero_adeli_cle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else '',
                     'numero_rpps_cle': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else ''
                 })
+    else:
+        if rpps_numbers:
+            for rpps in rpps_numbers:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                    'table': ['application.praticien'],
+                    'where': ['numero_rpps_cle = %s'],
+                    'data': [rpps],
+                    'limit': 1
+                })
+                if info:
+                    prescriber_found = True
+                    ps_list.append(info[0])
+
+        if not prescriber_found and adeli_numbers:
+            for adeli in adeli_numbers:
+                info = database.select({
+                    'select': ['id', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                    'table': ['application.praticien'],
+                    'where': ['numero_adeli_cle = %s'],
+                    'data': [adeli],
+                    'limit': 1
+                })
+                if info:
+                    ps_list.append(info[0])
+
     return ps_list
 
 
