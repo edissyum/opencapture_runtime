@@ -377,11 +377,7 @@ def run(args):
         start = time.time()
         # Set up data about the prescription
         image_content = Image.open(file)
-        text_with_conf = ocr.image_to_text_with_conf(image_content)
-
-        char_count = 0
-        for line in text_with_conf:
-            char_count += len(line['text'])
+        text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
 
         if int(char_count) > int(min_char):
             prescription_date, birth_date = find_date(date_process, text_with_conf, prescription_time_delta)
@@ -391,6 +387,7 @@ def run(args):
                 patients = [{'id': '', 'prenom': '', 'nom': '', 'nir': ''}]
             if not prescribers:
                 prescribers = [{'id': '', 'prenom': '', 'nom': '', 'numero_rpps_cle': '', 'numero_adeli_cle': ''}]
+
             _data = {
                 'patients': patients,
                 'prescribers': prescribers,

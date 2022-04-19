@@ -84,12 +84,14 @@ class PyTesseract:
         confs = data.groupby(['page_num', 'block_num', 'par_num', 'line_num'])['conf'].mean().tolist()
 
         line_conf = []
+        char_count = 0
         for i in range(len(lines)):
             if lines[i].strip():
                 conf = round(confs[i], 2)
                 if conf >= 50:
+                    char_count += len(lines[i])
                     line_conf.append({'text': lines[i], 'conf': conf})
-        return line_conf
+        return line_conf, char_count
 
     def get_ocr_errors_table(self):
         config_path = self.path + '/config/OCR_ERRORS.xml'

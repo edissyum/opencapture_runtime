@@ -370,7 +370,7 @@ if __name__ == '__main__':
             file = prescription_path + prescription
             image_content = Image.open(file)
             # text_lines = ocr.line_box_builder(image_content)
-            text_with_conf = ocr.image_to_text_with_conf(image_content)
+            text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
 
             # Retrieve all the information
             with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
