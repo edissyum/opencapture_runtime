@@ -64,17 +64,31 @@ class FindRPPS:
             return True
         return False
 
-    def process(self, line):
+    def process(self, line, second=False):
         _rrps = []
         for item in self.ocr.OCRErrorsTable['NUMBERS']:
             pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
             line = re.sub(pattern, item, line)
 
         line = line.replace('/', '').replace(' ', '').replace('-', '')
-        for _rpps in re.finditer(r"\d{11}", line):
-            data = _rpps.group()
-            if data and self.rpps_verification(data):
-                _rrps.append(data)
+
+        for rpps in re.finditer(r"(N(°|O)\s*)?(RPPS).*", line.upper()):
+            rpps = re.split(r"(?:(?:N(?:°|O))\s*(?:(RPPS)))", rpps.group(), flags=re.IGNORECASE)
+            for _r in rpps:
+                if _r:
+                    _r = re.sub(r"[|!,*)@#%(&$_?.^:;\[\]]", '', _r, flags=re.IGNORECASE)
+                    _r = re.sub(r"(N(°|O)\s*)?(RPPS)", '', _r, flags=re.IGNORECASE)
+                    for item in self.ocr.OCRErrorsTable['NUMBERS']:
+                        pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
+                        _ad = re.sub(pattern, item, _r)
+                    if _r and self.rpps_verification(_r):
+                        _rrps.append(_r.strip())
+
+        if second:
+            for _rpps in re.finditer(r"\d{11}", line):
+                data = _rpps.group()
+                if data and self.rpps_verification(data):
+                    _rrps.append(data)
         return _rrps
 
     def run(self):
@@ -82,4 +96,10 @@ class FindRPPS:
             res = self.process(line['text'].upper())
             if res:
                 self.Log.info('RPPS number found : ' + str(res))
+                return res
+
+        for line in self.text:
+            res = self.process(line['text'].upper(), True)
+            if res:
+                self.Log.info('Adeli number found : ' + str(res))
                 return res

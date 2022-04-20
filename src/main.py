@@ -363,14 +363,14 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '37 910 045.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '34 491 082.jpg':
             start = time.time()
-            print(prescription)
             # Set up data about the prescription
             file = prescription_path + prescription
             image_content = Image.open(file)
             # text_lines = ocr.line_box_builder(image_content)
             text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
+            print(str(cpt) + '/' + str(number_of_prescription), prescription, 'char_count :', char_count)
 
             # Retrieve all the information
             with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
@@ -387,8 +387,8 @@ if __name__ == '__main__':
             if not prescribers:
                 prescribers = [{'id': '', 'prenom': '', 'nom': '', 'numero_rpps_cle': '', 'numero_adeli_cle': ''}]
             # print(cabinet_id)
-            # print('patients : ', patients)
-            # print('prescribers : ', prescribers)
+            print('patients : ', patients)
+            print('prescribers : ', prescribers)
             # print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patients[0]['nom'], patients[0]['prenom'], prescribers[0]['nom'], prescribers[0]['prenom'], prescribers[0]['numero_adeli_cle'], prescribers[0]['numero_rpps_cle'], patients[0]['nir'])
             with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
                 csv_reader = csv.DictReader(csv_file, delimiter=';')
