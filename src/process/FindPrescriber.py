@@ -35,6 +35,7 @@ class FindPrescriber:
             for _ps in prescribers:
                 if _ps:
                     _ps = re.sub(r"\d", '', _ps, flags=re.IGNORECASE)
+                    _ps = re.sub(r" -", '-', _ps, flags=re.IGNORECASE)
                     _ps = re.sub(r"[|!,*)@#%(&$_?.^:\[\]]", '', _ps, flags=re.IGNORECASE)
                     splitted = _ps.strip().split(' ')
                     if len(splitted) > 1:

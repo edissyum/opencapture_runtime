@@ -82,13 +82,15 @@ class FindAdeli:
                         pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
                         _ad = re.sub(pattern, item, _ad)
                     if _ad and self.adeli_verification(_ad):
-                        _adelis_list.append(_ad.strip())
+                        if _ad.strip() not in _adelis_list:
+                            _adelis_list.append(_ad.strip())
 
         if second:
             for _adeli in re.finditer(r"\d{9}", line):
                 data = _adeli.group()
                 if data and self.adeli_verification(data):
-                    _adelis_list.append(data)
+                    if data not in _adelis_list:
+                        _adelis_list.append(data)
         return _adelis_list
 
     def run(self):

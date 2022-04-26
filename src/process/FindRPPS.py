@@ -82,13 +82,15 @@ class FindRPPS:
                         pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
                         _ad = re.sub(pattern, item, _r)
                     if _r and self.rpps_verification(_r):
-                        _rrps.append(_r.strip())
+                        if _r.strip() not in _rrps:
+                            _rrps.append(_r.strip())
 
         if second:
             for _rpps in re.finditer(r"\d{11}", line):
                 data = _rpps.group()
                 if data and self.rpps_verification(data):
-                    _rrps.append(data)
+                    if data not in _rrps:
+                        _rrps.append(data)
         return _rrps
 
     def run(self):
