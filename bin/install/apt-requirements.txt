@@ -1,3 +1,4 @@
+redis
 apache2
 python3
 psycopg2
