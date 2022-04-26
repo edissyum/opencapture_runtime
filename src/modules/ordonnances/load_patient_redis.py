@@ -1,11 +1,27 @@
 import json
 import redis
 import psycopg2.extras
-from src.classes.Config import Config
+from configparser import ConfigParser, ExtendedInterpolation
+
+
+class Config:
+    def __init__(self, path, interpolation=True):
+        self.cfg = {}
+        self.file = path
+        if interpolation:
+            # ExtendedInterpolation is needed to use var into the config.ini file
+            parser = ConfigParser(interpolation=ExtendedInterpolation())
+        else:
+            parser = ConfigParser()
+        parser.read(path)
+        for section in parser.sections():
+            self.cfg[section] = {}
+            for info in parser[section]:
+                self.cfg[section][info] = parser[section][info]
 
 
 if __name__ == '__main__':
-    config = Config('../../../config/modules/ordonnances/config.ini')
+    config = Config('config/modules/ordonnances/config.ini')
     conn = psycopg2.connect(
         "dbname     = " + config.cfg['DATABASE']['postgres_database'] +
         " user      = " + config.cfg['DATABASE']['postgres_user'] +

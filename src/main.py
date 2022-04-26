@@ -23,8 +23,8 @@ from process.FindAdeli import FindAdeli
 from process.FindPerson import FindPerson
 from classes.PyTesseract import PyTesseract
 from process.FindPrescriber import FindPrescriber
-from src.classes.Config import Config
-from src.classes.Database import Database
+from classes.Config import Config
+from classes.Database import Database
 
 
 def timer(start_time, end_time):

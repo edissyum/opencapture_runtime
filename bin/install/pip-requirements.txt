@@ -1,8 +1,11 @@
 pyocr
 flask
+redis
 PyJWT
 pandas
 pillow
+thefuzz
 werkzeug
 unidecode
 pytesseract
+python-Levenshtein
