@@ -291,7 +291,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     prescriber_found = False
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
-    adeli_numbers = {}
+    adeli_numbers = []
     if prescribers:
         for cpt in range(0, len(prescribers)):
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
