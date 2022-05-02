@@ -353,7 +353,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
 
             if not prescriber_found:
                 ps_list.append({
-                    'id': '',
+                    'id_praticien': '',
+                    'id_prescripteur': '',
                     'prenom': firstname.strip(),
                     'nom': lastname.strip(),
                     'numero_adeli_cle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else '',
@@ -428,7 +429,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '37 839 297.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '37 839 297.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
