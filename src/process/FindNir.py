@@ -32,7 +32,7 @@ class FindNir:
             line = re.sub(pattern, item, line)
 
         line = line.replace('/', '').replace(' ', '').replace('-', '')
-        for _secu_number in re.finditer(r"([12])([0-9]{2}(?:0[1-9]|1[0-2]))(2[AB]|[0-9]{2})([0-9]{6})([0-9]{2})?", line):
+        for _secu_number in re.finditer(r"([123])([0-9]{2}(?:0[1-9]|1[0-2]))(2[AB]|[0-9]{2})([0-9]{6})([0-9]{2})?", line):
             if _secu_number.group():
                 return _secu_number.group()
         return []

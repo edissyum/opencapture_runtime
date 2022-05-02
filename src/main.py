@@ -121,12 +121,13 @@ def find_date():
     return _date, date_birth
 
 
-def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, cabinet_id):
+def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers, patient=None):
     firstname, lastname = '', ''
     patients = []
     patient_found = False
     levenshtein_ratio = 80
-    patient = FindPerson(text_with_conf, log, locale, ocr).run()
+    if patient is None:
+        patient = FindPerson(text_with_conf, log, locale, ocr).run()
     nir = FindNir(text_with_conf, log, locale, ocr).run()
 
     if date_birth and patient is None:
@@ -220,6 +221,52 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             'date_naissance': date_birth,
             'nir': nir
         })
+
+    if not patient_found:
+        r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        list_names = json.loads(r.get('names'))
+
+        if list_names:
+            for text in text_with_conf:
+                _patient = ''
+                for name in list_names:
+                    if name.lower() in text['text'].lower():
+                        if prescribers:
+                            for prescriber in prescribers:
+                                if prescriber['nom'].lower() not in text['text'].lower():
+                                    _patient = text['text']
+                                    break
+
+                        if _patient:
+                            firstname = lastname = ''
+                            if not _patient.isupper():
+                                splitted = _patient.split(' ')
+                                if splitted[0] == 'M':
+                                    del splitted[0]
+                                for data in splitted:
+                                    if data.isupper():
+                                        lastname += data.strip() + ' '
+                                    else:
+                                        firstname += data.strip().capitalize() + ' '
+                                firstname = firstname.strip()
+                                lastname = lastname.strip()
+                            else:
+                                splitted = _patient.split(' ')
+                                if splitted[0] == 'M':
+                                    del splitted[0]
+                                lastname = splitted[0].strip()
+                                firstname = splitted[1].strip() if len(splitted) > 1 else ''
+
+                            for _patient in json.loads(patients_cabinet):
+                                if lastname and firstname:
+                                    if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
+                                        print(_patient)
+                                        patients.append(_patient)
+                                        break
+                                    if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
+                                        print('hereaa')
+                                        patients.append(_patient)
+                                        break
 
     return patients
 
@@ -371,7 +418,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '38 319 610.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '37 839 297.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
@@ -389,8 +436,8 @@ if __name__ == '__main__':
                         cabinet_id = row['cabinet_id']
 
             prescription_date, birth_date = find_date()
-            patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id)
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database)
+            patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers)
             if not patients:
                 patients = [{'id': '', 'prenom': '', 'nom': '', 'nir': ''}]
             if not prescribers:
