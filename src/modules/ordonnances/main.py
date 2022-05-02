@@ -364,7 +364,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
 
             if not prescriber_found:
                 ps_list.append({
-                    'id': '',
+                    'id_praticien': '',
+                    'id_prescripteur': '',
                     'prenom': firstname.strip(),
                     'nom': lastname.strip(),
                     'numero_adeli_cle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else '',
