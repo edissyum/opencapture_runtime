@@ -129,6 +129,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
     patients = []
     patient_found = False
     levenshtein_ratio = 80
+
     if patient is None:
         patient = FindPerson(text_with_conf, log, locale, ocr).run()
     nir = FindNir(text_with_conf, log, locale, ocr).run()
@@ -221,8 +222,10 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                     if name.lower() in text['text'].lower():
                         if prescribers:
                             for prescriber in prescribers:
-                                if prescriber['nom'].lower() not in text['text'].lower():
+                                if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 70:
                                     _patient = text['text']
+                                    for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
+                                        _patient = ''
                                     break
 
                         if _patient:
@@ -429,7 +432,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '37 839 297.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '37 666 544.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription

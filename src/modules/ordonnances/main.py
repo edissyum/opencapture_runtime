@@ -140,6 +140,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
     patients = []
     patient_found = False
     levenshtein_ratio = 80
+
     if patient is None:
         patient = FindPerson(text_with_conf, log, locale, ocr).run()
     nir = FindNir(text_with_conf, log, locale, ocr).run()
@@ -232,8 +233,10 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                     if name.lower() in text['text'].lower():
                         if prescribers:
                             for prescriber in prescribers:
-                                if prescriber['nom'].lower() not in text['text'].lower():
+                                if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 70:
                                     _patient = text['text']
+                                    for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
+                                        _patient = ''
                                     break
 
                         if _patient:

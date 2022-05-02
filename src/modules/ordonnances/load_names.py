@@ -11,9 +11,10 @@ def timer(start_time, end_time):
 if __name__ == '__main__':
     file = '/home/nathan/Bureau/EXPORT_CBA/LISTE_PRENOMS.csv'
     names = []
+    exclusions = ['paris', 'juste', 'avril', 'lucho', 'donna', 'nance', 'patient', 'georg', 'iness', 'issem']
     with open(file, 'r') as csv_file:
         for row in csv.reader(csv_file, delimiter=';'):
-            if row[1].lower() not in names and len(row[1]) >= 5 and row[1].lower() not in ['paris', 'juste', 'avril', 'lucho', 'donna', 'nance']:
+            if row[1].lower() not in names and len(row[1]) >= 5 and row[1].lower() not in exclusions:
                 names.append(row[1].lower())
 
     r = redis.StrictRedis(host='localhost', port=6379, db=0)
