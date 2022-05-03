@@ -407,17 +407,18 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
 
         if not prescriber_found:
             adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
-            for adeli in adeli_numbers:
-                info = database.select({
-                    'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
-                    'table': ['application.praticien'],
-                    'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
-                    'data': [adeli, cabinet_id],
-                    'limit': 1
-                })
-                if info:
-                    info[0]['id_prescripteur'] = ''
-                    ps_list.append(info[0])
+            if adeli_numbers:
+                for adeli in adeli_numbers:
+                    info = database.select({
+                        'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                        'table': ['application.praticien'],
+                        'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
+                        'data': [adeli, cabinet_id],
+                        'limit': 1
+                    })
+                    if info:
+                        info[0]['id_prescripteur'] = ''
+                        ps_list.append(info[0])
 
     return ps_list
 
