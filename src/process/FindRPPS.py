@@ -103,5 +103,5 @@ class FindRPPS:
         for line in self.text:
             res = self.process(line['text'].upper(), True)
             if res:
-                self.Log.info('Adeli number found : ' + str(res))
+                self.Log.info('RPPS number found : ' + str(res))
                 return res
