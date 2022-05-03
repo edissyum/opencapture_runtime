@@ -224,12 +224,14 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         if name.lower() in text['text'].lower() and not found_in_line:
                             if prescribers:
                                 for prescriber in prescribers:
-                                    if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 70:
-                                        _patient = text['text']
-                                        found_in_line = True
-                                        nom = name
-                                        for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
-                                            _patient = ''
+                                    if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 65:
+                                        for word in text['text'].split(' '):
+                                            if fuzz.ratio(name.lower(), word.lower()) >= 85:
+                                                _patient = text['text']
+                                                found_in_line = True
+                                                nom = name
+                                                for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
+                                                    _patient = ''
                                         break
 
                             if _patient:
@@ -244,6 +246,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                                 _patient = ' ' + splitted[_cpt + 1]
 
                                     if not _patient.isupper():
+                                        splitted = _patient.split(' ')
                                         if splitted[0] == 'M':
                                             del splitted[0]
                                         for data in splitted:
@@ -453,15 +456,15 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg': # and prescription == '38 046 248.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '38 241 378.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
             image_content = Image.open(file)
             # text_lines = ocr.line_box_builder(image_content)
             text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
-            for t in text_with_conf:
-                print(t['text'])
+            # for t in text_with_conf:
+            #     print(t['text'])
             print(str(cpt) + '/' + str(number_of_prescription), prescription, 'char_count :', char_count)
 
             # Retrieve all the information

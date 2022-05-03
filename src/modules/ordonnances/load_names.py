@@ -11,7 +11,14 @@ def timer(start_time, end_time):
 if __name__ == '__main__':
     file = '/home/nathan/Bureau/EXPORT_CBA/LISTE_PRENOMS.csv'
     names = []
-    exclusions = ['paris', 'juste', 'avril', 'lucho', 'donna', 'nance', 'patient', 'georg', 'iness', 'issem']
+    exclusions = ['paris', 'juste', 'avril', 'lucho', 'donna', 'nance', 'patient', 'georg', 'iness',
+                  'issem', 'melan', 'aires', 'matine', 'erman', 'lance', 'amedi', 'hande', 'samed',
+                  'randa', 'honora', 'honor', 'anique', 'ellie']
+    add = ['ANNAIK']
+
+    for _a in add:
+        names.append(_a.lower())
+
     with open(file, 'r') as csv_file:
         for row in csv.reader(csv_file, delimiter=';'):
             if row[1].lower() not in names and len(row[1]) >= 5 and row[1].lower() not in exclusions:
