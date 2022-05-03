@@ -35,7 +35,12 @@ class FindPerson:
                 person_name = re.sub(r"\d(\s*(ans))?", '', person_name, flags=re.IGNORECASE)
                 person_name = re.sub(r"[‘|!,*)@#%(&$_?.^:\[\]]", '', person_name, flags=re.IGNORECASE)
                 person_name = re.sub(r"(N(É|E)(\(?E\)?)?\s*(F|L|1)E)|DATE\s*DE\s*NAISSANCE", '', person_name, flags=re.IGNORECASE)
-                return person_name.strip()
+                person_name = person_name.strip()
+                tmp_person = ''
+                for word in person_name.split(' '):
+                    if len(word) > 2:
+                        tmp_person += word + ' '
+                return tmp_person.strip()
         return []
 
     def run(self):
