@@ -32,7 +32,7 @@ class FindPerson:
         for _person_name in re.finditer(r"((MADAME|MADEMOISELLE|MLLE|(M)?ONSIEUR)|NOM\s*:).*", line, flags=re.IGNORECASE):
             if _person_name.group():
                 person_name = re.sub(r"((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)", '', _person_name.group(), flags=re.IGNORECASE)
-                person_name = re.sub(r"\d", '', person_name, flags=re.IGNORECASE)
+                person_name = re.sub(r"\d(\s*(ans))?", '', person_name, flags=re.IGNORECASE)
                 person_name = re.sub(r"[‘|!,*)@#%(&$_?.^:\[\]]", '', person_name, flags=re.IGNORECASE)
                 person_name = re.sub(r"(N(É|E)(\(?E\)?)?\s*(F|L|1)E)|DATE\s*DE\s*NAISSANCE", '', person_name, flags=re.IGNORECASE)
                 return person_name.strip()

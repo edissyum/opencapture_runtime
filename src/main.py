@@ -456,7 +456,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '38 241 378.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '38 451 574.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
