@@ -308,7 +308,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
     adeli_numbers = []
     levenshtein_ratio = '2'
-
+    # for t in text_with_conf:
+    #     print(t['text'])
     if prescribers:
         for cpt in range(0, len(prescribers)):
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
@@ -404,7 +405,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     info[0]['id_prescripteur'] = ''
                     ps_list.append(info[0])
 
-        if not prescriber_found and adeli_numbers:
+        if not prescriber_found:
+            adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
             for adeli in adeli_numbers:
                 info = database.select({
                     'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
