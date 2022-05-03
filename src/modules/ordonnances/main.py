@@ -318,15 +318,14 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
 
 def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     ps_list = []
-    prescriber_found = False
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
     adeli_numbers = []
     levenshtein_ratio = '2'
-    # for t in text_with_conf:
-    #     print(t['text'])
+
     if prescribers:
         for cpt in range(0, len(prescribers)):
+            prescriber_found = False
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
                 info = database.select({
                     'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
@@ -340,6 +339,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     prescriber_found = True
                     info[0]['id_prescripteur'] = ''
                     ps_list.append(info[0])
+                    continue
 
             if not prescriber_found:
                 adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
@@ -355,6 +355,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                         prescriber_found = True
                         info[0]['id_prescripteur'] = ''
                         ps_list.append(info[0])
+                        continue
 
             firstname = lastname = ''
             if not prescribers[cpt].isupper():
@@ -383,6 +384,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     prescriber_found = True
                     info[0]['id_prescripteur'] = ''
                     ps_list.append(info[0])
+                    continue
                 else:
                     info = database.select({
                         'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
@@ -395,6 +397,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                         prescriber_found = True
                         info[0]['id_praticien'] = ''
                         ps_list.append(info[0])
+                        continue
 
             if not prescriber_found:
                 ps_list.append({
@@ -405,7 +408,9 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     'numero_adeli_cle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else '',
                     'numero_rpps_cle': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else ''
                 })
+                continue
     else:
+        prescriber_found = False
         if rpps_numbers:
             for rpps in rpps_numbers:
                 info = database.select({
