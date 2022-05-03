@@ -56,7 +56,7 @@ def get_document_informations():
             run_module = getattr(__import__('src.modules.' + args['module'] + '.' + _filename, fromlist=_method), _method)
             res = run_module(args['data'])
             if res[0]:
-                return {'data': res[1], 'error': False}, res[2]
+                return {'data': res[1], 'error': None}, res[2]
             else:
                 return {'error': res[1]}, res[2]
         else:
