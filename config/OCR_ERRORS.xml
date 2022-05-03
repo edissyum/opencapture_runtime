@@ -13,4 +13,18 @@
             <MISREAD_CHARS>#</MISREAD_CHARS>
         </ELEMENT>
     </NUMBERS>
+    <LETTERS>
+        <ELEMENT>
+            <FIX>O</FIX>
+            <MISREAD_CHARS>0</MISREAD_CHARS>
+        </ELEMENT>
+        <ELEMENT>
+            <FIX>B</FIX>
+            <MISREAD_CHARS>8</MISREAD_CHARS>
+        </ELEMENT>
+        <ELEMENT>
+            <FIX>l</FIX>
+            <MISREAD_CHARS>1</MISREAD_CHARS>
+        </ELEMENT>
+    </LETTERS>
 </ROOT>
