@@ -235,12 +235,14 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         if name.lower() in text['text'].lower() and not found_in_line:
                             if prescribers:
                                 for prescriber in prescribers:
-                                    if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 70:
-                                        _patient = text['text']
-                                        found_in_line = True
-                                        nom = name
-                                        for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
-                                            _patient = ''
+                                    if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 65:
+                                        for word in text['text'].split(' '):
+                                            if fuzz.ratio(name.lower(), word.lower()) >= 85:
+                                                _patient = text['text']
+                                                found_in_line = True
+                                                nom = name
+                                                for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
+                                                    _patient = ''
                                         break
 
                             if _patient:
@@ -255,6 +257,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                                 _patient = ' ' + splitted[_cpt + 1]
 
                                     if not _patient.isupper():
+                                        splitted = _patient.split(' ')
                                         if splitted[0] == 'M':
                                             del splitted[0]
                                         for data in splitted:
@@ -315,6 +318,9 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
     adeli_numbers = []
+    levenshtein_ratio = '2'
+    # for t in text_with_conf:
+    #     print(t['text'])
     if prescribers:
         for cpt in range(0, len(prescribers)):
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
@@ -325,6 +331,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     'data': [rpps_numbers[cpt], cabinet_id],
                     'limit': 1
                 })
+
                 if info:
                     prescriber_found = True
                     info[0]['id_prescripteur'] = ''
@@ -364,7 +371,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
                     'table': ['application.praticien'],
-                    'where': ['(LEVENSHTEIN(nom, %s) <= 1 AND LEVENSHTEIN(prenom, %s) <= 1) OR (LEVENSHTEIN(prenom, %s) <= 1 AND LEVENSHTEIN(nom, %s) <= 1)', 'cabinet_id = %s'],
+                    'where': ['(LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
                     'data': [lastname, firstname, lastname, firstname, cabinet_id],
                     'limit': 1
                 })
@@ -376,7 +383,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     info = database.select({
                         'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
                         'table': ['sesam.prescripteur'],
-                        'where': ['(LEVENSHTEIN(nom, %s) <= 1 AND LEVENSHTEIN(prenom, %s) <= 1) OR (LEVENSHTEIN(prenom, %s) <= 1 AND LEVENSHTEIN(nom, %s) <= 1)'],
+                        'where': ['(LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ')'],
                         'data': [lastname, firstname, lastname, firstname],
                         'limit': 1
                     })
@@ -409,18 +416,20 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     info[0]['id_prescripteur'] = ''
                     ps_list.append(info[0])
 
-        if not prescriber_found and adeli_numbers:
-            for adeli in adeli_numbers:
-                info = database.select({
-                    'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
-                    'table': ['application.praticien'],
-                    'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
-                    'data': [adeli, cabinet_id],
-                    'limit': 1
-                })
-                if info:
-                    info[0]['id_prescripteur'] = ''
-                    ps_list.append(info[0])
+        if not prescriber_found:
+            adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
+            if adeli_numbers:
+                for adeli in adeli_numbers:
+                    info = database.select({
+                        'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                        'table': ['application.praticien'],
+                        'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
+                        'data': [adeli, cabinet_id],
+                        'limit': 1
+                    })
+                    if info:
+                        info[0]['id_prescripteur'] = ''
+                        ps_list.append(info[0])
 
     return ps_list
 
