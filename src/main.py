@@ -314,6 +314,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     'data': [rpps_numbers[cpt], cabinet_id],
                     'limit': 1
                 })
+
                 if info:
                     prescriber_found = True
                     info[0]['id_prescripteur'] = ''
@@ -452,14 +453,15 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg' and prescription == '37 074 241.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg': # and prescription == '38 046 248.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
             image_content = Image.open(file)
             # text_lines = ocr.line_box_builder(image_content)
             text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
-
+            for t in text_with_conf:
+                print(t['text'])
             print(str(cpt) + '/' + str(number_of_prescription), prescription, 'char_count :', char_count)
 
             # Retrieve all the information
