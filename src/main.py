@@ -137,7 +137,6 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
     if date_birth and patient is None:
         text_words = ocr.word_box_builder(image_content)
         patient = search_patient_from_birth_date(date_birth, text_words)
-
     if patient:
         if not patient.isupper():
             splitted = patient.split(' ')
@@ -152,7 +151,6 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             splitted = patient.split(' ')
             lastname = splitted[0].strip()
             firstname = splitted[1].strip() if len(splitted) > 1 else ''
-
     if nir or (lastname and firstname) or date_birth:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
         patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
@@ -191,11 +189,11 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         break
 
                 if lastname and firstname:
-                    if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
+                    if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
                         patient_found = True
                         patients.append(_patient)
                         break
-                    if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
+                    if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                         patient_found = True
                         patients.append(_patient)
                         break
@@ -218,7 +216,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
         if list_names:
             for text in text_with_conf:
                 found_in_line = False
-                _patient = nom = ''
+                _patient = prenom = ''
                 if not found_in_line:
                     for name in list_names:
                         if name.lower() in text['text'].lower() and not found_in_line:
@@ -229,7 +227,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                             if fuzz.ratio(name.lower(), word.lower()) >= 85:
                                                 _patient = text['text']
                                                 found_in_line = True
-                                                nom = name
+                                                prenom = name
                                                 for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
                                                     _patient = ''
                                         break
@@ -238,13 +236,13 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                 firstname = lastname = ''
                                 if not _patient.isupper():
                                     splitted = _patient.split(' ')
-                                    for _cpt in range(0, len(splitted)):
-                                        if nom.lower() in splitted[_cpt].lower():
-                                            _patient = splitted[_cpt - 1] + ' '
-                                            _patient += splitted[_cpt]
-                                            if len(splitted) > _cpt + 1:
-                                                _patient = ' ' + splitted[_cpt + 1]
-
+                                    if len(splitted) > 2:
+                                        for _cpt in range(0, len(splitted)):
+                                            if prenom.lower() in splitted[_cpt].lower():
+                                                _patient = splitted[_cpt - 1] + ' '
+                                                _patient += splitted[_cpt]
+                                                if len(splitted) > _cpt + 1:
+                                                    _patient = ' ' + splitted[_cpt + 1]
                                     if not _patient.isupper():
                                         splitted = _patient.split(' ')
                                         if splitted[0] == 'M':
@@ -274,11 +272,17 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                     patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
                                 for _patient in json.loads(patients_cabinet):
                                     if lastname and firstname:
-                                        if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
+                                        if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
                                             patient_found = True
                                             patients.append(_patient)
                                             break
-                                        if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= 80 and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
+                                        if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
+                                            patient_found = True
+                                            patients.append(_patient)
+                                            break
+                                    elif lastname and not firstname:
+                                        print('here')
+                                        if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                                             patient_found = True
                                             patients.append(_patient)
                                             break
@@ -461,7 +465,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '33 365 525.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '38 590 941.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
@@ -469,7 +473,7 @@ if __name__ == '__main__':
             # text_lines = ocr.line_box_builder(image_content)
             text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
             # for t in text_with_conf:
-            #     print(t['text'])
+            #     print(t)
             print(str(cpt) + '/' + str(number_of_prescription), prescription, 'char_count :', char_count)
 
             # Retrieve all the information
@@ -478,7 +482,6 @@ if __name__ == '__main__':
                 for row in csv_reader:
                     if row['id'].replace(' ', '') == os.path.splitext(prescription)[0].replace(' ', ''):
                         cabinet_id = row['cabinet_id']
-
             prescription_date, birth_date = find_date()
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id)
             patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers)
@@ -491,7 +494,6 @@ if __name__ == '__main__':
             print('prescribers : ', prescribers)
             end = time.time()
             print(timer(start, end))
-            # print(str(cpt) + '/' + str(number_of_prescription), char_count, prescription_date, birth_date, patients[0]['nom'], patients[0]['prenom'], prescribers[0]['nom'], prescribers[0]['prenom'], prescribers[0]['numero_adeli_cle'], prescribers[0]['numero_rpps_cle'], patients[0]['nir'])
             with open(data_ordos, mode='r', encoding="ISO-8859-1") as csv_file:
                 csv_reader = csv.DictReader(csv_file, delimiter=';')
                 line_count = 0
