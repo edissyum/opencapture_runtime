@@ -307,6 +307,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
     adeli_numbers = []
+    levenshtein_ratio = '2'
+
     if prescribers:
         for cpt in range(0, len(prescribers)):
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
@@ -357,7 +359,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
                     'table': ['application.praticien'],
-                    'where': ['(LEVENSHTEIN(nom, %s) <= 1 AND LEVENSHTEIN(prenom, %s) <= 1) OR (LEVENSHTEIN(prenom, %s) <= 1 AND LEVENSHTEIN(nom, %s) <= 1)', 'cabinet_id = %s'],
+                    'where': ['(LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
                     'data': [lastname, firstname, lastname, firstname, cabinet_id],
                     'limit': 1
                 })
@@ -369,7 +371,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     info = database.select({
                         'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
                         'table': ['sesam.prescripteur'],
-                        'where': ['(LEVENSHTEIN(nom, %s) <= 1 AND LEVENSHTEIN(prenom, %s) <= 1) OR (LEVENSHTEIN(prenom, %s) <= 1 AND LEVENSHTEIN(nom, %s) <= 1)'],
+                        'where': ['(LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ')'],
                         'data': [lastname, firstname, lastname, firstname],
                         'limit': 1
                     })
@@ -456,7 +458,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '38 451 574.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '38 603 088.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription
