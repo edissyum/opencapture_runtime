@@ -173,6 +173,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
 
                 if date_birth and lastname and firstname:
                     if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
+                        print('here')
                         patient_found = True
                         patients.append(_patient)
                         break
@@ -229,7 +230,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                                 _patient = text['text']
                                                 found_in_line = True
                                                 prenom = name
-                                                for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
+                                                for _prescriber_name in re.finditer(r"((D|P|J)?O(C|S)TEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
                                                     _patient = ''
                                         break
 
@@ -237,17 +238,26 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                 firstname = lastname = ''
                                 if not _patient.isupper():
                                     splitted = _patient.split(' ')
+                                    for cpt in range(0, len(splitted)):
+                                        if re.compile('((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)', flags=re.IGNORECASE).search(splitted[cpt]):
+                                            del splitted[cpt]
+                                            break
                                     if len(splitted) > 2:
                                         for _cpt in range(0, len(splitted)):
                                             if prenom.lower() in splitted[_cpt].lower():
+                                                print(splitted[_cpt])
                                                 _patient = splitted[_cpt - 1] + ' '
                                                 _patient += splitted[_cpt]
                                                 if len(splitted) > _cpt + 1:
                                                     _patient = ' ' + splitted[_cpt + 1]
+
                                     if not _patient.isupper():
                                         splitted = _patient.split(' ')
-                                        if splitted[0] == 'M':
-                                            del splitted[0]
+                                        for cpt in range(0, len(splitted)):
+                                            if re.compile('((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)', flags=re.IGNORECASE).search(splitted[cpt]):
+                                                del splitted[cpt]
+                                                break
+
                                         for data in splitted:
                                             if data.isupper():
                                                 lastname += data.strip() + ' '
@@ -257,14 +267,18 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                         lastname = lastname.strip()
                                     else:
                                         splitted = _patient.split(' ')
-                                        if splitted[0] == 'M':
-                                            del splitted[0]
+                                        for cpt in range(0, len(splitted)):
+                                            if re.compile('((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)', flags=re.IGNORECASE).search(splitted[cpt]):
+                                                del splitted[cpt]
+                                                break
                                         lastname = splitted[0].strip()
                                         firstname = splitted[1].strip() if len(splitted) > 1 else ''
                                 else:
                                     splitted = _patient.split(' ')
-                                    if splitted[0] == 'M':
-                                        del splitted[0]
+                                    for cpt in range(0, len(splitted)):
+                                        if re.compile('((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)', flags=re.IGNORECASE).search(splitted[cpt]):
+                                            del splitted[cpt]
+                                            break
                                     lastname = splitted[0].strip()
                                     firstname = splitted[1].strip() if len(splitted) > 1 else ''
 
@@ -460,7 +474,7 @@ if __name__ == '__main__':
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
-        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == 'ordo.jpg':
+        if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '39 086 635.jpg':
             start = time.time()
             # Set up data about the prescription
             file = prescription_path + prescription

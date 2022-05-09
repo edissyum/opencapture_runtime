@@ -13,7 +13,7 @@ if __name__ == '__main__':
     names = []
     exclusions = ['paris', 'juste', 'avril', 'lucho', 'donna', 'nance', 'patient', 'georg', 'iness',
                   'issem', 'melan', 'aires', 'matine', 'erman', 'lance', 'amedi', 'hande', 'samed',
-                  'randa', 'honora', 'honor', 'anique', 'ellie']
+                  'randa', 'honora', 'honor', 'anique', 'ellie', 'adame', 'adam']
     add = ['ANNAIK']
 
     for _a in add:
