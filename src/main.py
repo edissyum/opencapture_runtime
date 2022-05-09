@@ -173,7 +173,6 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
 
                 if date_birth and lastname and firstname:
                     if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
-                        print('here')
                         patient_found = True
                         patients.append(_patient)
                         break
@@ -489,7 +488,7 @@ if __name__ == '__main__':
                 for row in csv_reader:
                     if row['id'].replace(' ', '') == os.path.splitext(prescription)[0].replace(' ', ''):
                         cabinet_id = row['cabinet_id']
-            cabinet_id = 12552
+
             prescription_date, birth_date = find_date()
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id)
             patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers)
