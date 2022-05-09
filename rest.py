@@ -15,6 +15,8 @@
 
 # @dev : Nathan Cheval <nathan.cheval@outlook.fr>
 
+import os
+from src.classes.Log import Log
 from flask import Flask, request
 from src.functions import is_dev
 from src.auth import token_required, generate_token
@@ -35,6 +37,40 @@ app.config['MODULES'] = {
 @app.route('/auth/getToken', methods=['GET'])
 @is_dev
 def get_token():
+    log = Log('auth.log', None)
+    if 'Authorization' in request.headers:
+        basic_auth = request.authorization
+        if os.path.isfile('.rest_auth'):
+            user_exists = False
+            with open('.rest_auth') as auth:
+                line = auth.read().split('\n')
+                for user in line:
+                    user = user.split(':')
+                    username = user[0]
+                    password = user[1]
+                    if username == basic_auth['username'] and password == basic_auth['password']:
+                        user_exists = True
+            if not user_exists:
+                log.error('Authentification error. IP Address : ' + request.remote_addr)
+                return {
+                    'auth_token': "",
+                    'days_before_exp': 0,
+                    'errors': 'Authentification error'
+                }, 401
+        else:
+            log.error('Authorization file missing. IP Address : ' + request.remote_addr)
+            return {
+                'auth_token': "",
+                'days_before_exp': 0,
+                'errors': 'Authorization file missing'
+            }, 404
+    else:
+        log.error('Authorization headers missing. IP Address : ' + request.remote_addr)
+        return {
+            'auth_token': "",
+            'days_before_exp': 0,
+            'errors': 'Authorization headers missing'
+        }, 400
     days_before_exp = 1
     token = generate_token(days_before_exp)
     return {

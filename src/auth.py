@@ -18,20 +18,25 @@
 import jwt
 import datetime
 import functools
+from src.classes.Log import Log
 from flask import current_app, request, jsonify
 
 
 def token_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
+        log = Log('auth.log', None)
         if 'Authorization' in request.headers:
             token = request.headers['Authorization'].split('Bearer')[1].lstrip()
             try:
                 jwt.decode(str(token), current_app.config['SECRET_KEY'], algorithms=["HS256"])
+                log.info('Authentification successful. IP Address : ' + request.remote_addr)
             except (jwt.InvalidTokenError, jwt.InvalidAlgorithmError, jwt.InvalidSignatureError,
                     jwt.ExpiredSignatureError, jwt.exceptions.DecodeError) as e:
+                log.error(str(e) + '. IP Address : ' + request.remote_addr)
                 return jsonify({"errors": "JWT_ERROR", "message": str(e)}), 500
         else:
+            log.error('Valid token is mandatory. IP Address : ' + request.remote_addr)
             return jsonify({"errors": "JWT_ERROR", "message": "Valid token is mandatory"}), 500
         return view(**kwargs)
     return wrapped_view

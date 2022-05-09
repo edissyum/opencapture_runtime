@@ -151,6 +151,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             splitted = patient.split(' ')
             lastname = splitted[0].strip()
             firstname = splitted[1].strip() if len(splitted) > 1 else ''
+
     if nir or (lastname and firstname) or date_birth:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
         patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
@@ -281,7 +282,6 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                             patients.append(_patient)
                                             break
                                     elif lastname and not firstname:
-                                        print('here')
                                         if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                                             patient_found = True
                                             patients.append(_patient)
@@ -456,7 +456,7 @@ if __name__ == '__main__':
                          'PRESCRIBER_LAST_NAME', 'PATIENT_BIRTH_DATE', 'PATIENT_SOCIALE_SECURITY',
                          'PATIENT_FIRST_NAME', 'PATIENT_LAST_NAME', 'PROCESS_TIME', 'PRESCRIBER_FIRST_NAME_PERCENTAGE',
                          'PRESCRIBER_LAST_NAME_PERCENTAGE', 'PATIENT_FIRST_NAME_PERCENTAGE', 'PATIENT_LAST_NAME_PERCENTAGE',
-                         'ADELI_PERCENTAGE', 'RPPS_PERCENTAGE', 'DATE_PERCENTAGE', 'GLOBAL_PERCENTAGE', 'CABINET_ID'])
+                         'ADELI_PERCENTAGE', 'RPPS_PERCENTAGE', 'DATE_PERCENTAGE', 'GLOBAL_PERCENTAGE', 'CABINET_ID', 'ID_PRESCRIBER', 'ID_PATIENT'])
     cpt = 1
     number_of_prescription = len(os.listdir(prescription_path))
     for prescription in os.listdir(prescription_path):
@@ -465,10 +465,8 @@ if __name__ == '__main__':
             # Set up data about the prescription
             file = prescription_path + prescription
             image_content = Image.open(file)
-            # text_lines = ocr.line_box_builder(image_content)
             text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
-            # for t in text_with_conf:
-            #     print(t)
+
             print(str(cpt) + '/' + str(number_of_prescription), prescription, 'char_count :', char_count)
 
             # Retrieve all the information
@@ -527,10 +525,12 @@ if __name__ == '__main__':
             #     raw_content += line['text'] + "\n"
 
             # Write on the CSV file
+            id_prescriber = prescribers[0]['id_prescripteur'] if prescribers[0]['id_prescripteur'] else (prescribers[0]['id_praticien'] if prescribers[0]['id_praticien'] else '')
+            id_patient = patients[0]['id'] if patients[0]['id'] else ''
             csv_writer.writerow([file, prescribers[0]['numero_adeli_cle'], prescribers[0]['numero_rpps_cle'], prescription_date, prescribers[0]['prenom'],
                                  prescribers[0]['nom'], birth_date, patients[0]['nir'], patients[0]['prenom'],
                                  patients[0]['nom'], timer(start, end), int(prescriber_firstname_percentage), int(prescriber_lastname_percentage),
                                  int(patient_firstname_percentage), int(patient_lastname_percentage), int(adeli_percentage), int(rpps_percentage), int(date_prescription_percentage), int(global_percentage),
-                                 cabinet_id])
+                                 cabinet_id, id_prescriber, id_patient])
             cpt = cpt + 1
     csv_file.close()

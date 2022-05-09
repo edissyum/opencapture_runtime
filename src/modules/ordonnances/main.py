@@ -130,8 +130,9 @@ def find_date(dateProcess, text_with_conf, prescription_time_delta):
             if datetime.strptime(date_birth, '%d/%m/%Y') > datetime.strptime(today, '%d/%m/%Y'):
                 date_birth = None
     if _date:
+        tmp_date = _date
         _date = datetime.strptime(_date, '%d/%m/%Y').strftime('%Y%m%d')
-    return _date, date_birth
+    return _date, date_birth, tmp_date
 
 
 def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers, patient=None):
@@ -466,6 +467,7 @@ def run(args):
     log = Log(path + '/bin/log/OCRunTime.log', smtp)
     database = Database(log, config.cfg['DATABASE'])
     ocr = PyTesseract('fra', log, path)
+
     prescription_time_delta = config.cfg['GLOBAL']['prescription_time_delta']
     min_char = config.cfg['GLOBAL']['min_char']
     date_process = FindDate('', log, locale, prescription_time_delta)
@@ -477,7 +479,7 @@ def run(args):
         text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
 
         if int(char_count) > int(min_char):
-            prescription_date, birth_date = find_date(date_process, text_with_conf, prescription_time_delta)
+            prescription_date, birth_date, orig_prescription = find_date(date_process, text_with_conf, prescription_time_delta)
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id)
             patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers)
             if not patients:
@@ -492,6 +494,36 @@ def run(args):
                 'description': None,
                 'prescription_date': prescription_date,
             }
+
+            description = ''
+            if patients[0]['prenom'] and patients[0]['nom']:
+                found_in_text = False
+                for line in text_with_conf:
+                    if patients[0]['prenom'] + ' ' + patients[0]['nom'] in line['text'] or \
+                       patients[0]['nom'] + ' ' + patients[0]['prenom'] in line['text']:
+                        found_in_text = True
+
+                    if found_in_text:
+                        description += line['text'] + "\n"
+            elif orig_prescription:
+                found_in_text = False
+                for line in text_with_conf:
+                    if orig_prescription in line['text']:
+                        found_in_text = True
+
+                    if found_in_text:
+                        description += line['text'] + "\n"
+            elif prescribers:
+                found_in_text = False
+                for line in text_with_conf:
+                    for _ps in prescribers:
+                        if _ps['prenom'] + ' ' + _ps['nom'] in line['text'] or \
+                           _ps['nom'] + ' ' + _ps['prenom'] in line['text']:
+                            found_in_text = True
+
+                    if found_in_text:
+                        description += line['text'] + "\n"
+            _data.update({'description': description})
 
             end = time.time()
             _data.update({'process_time': timer(start, end)})
