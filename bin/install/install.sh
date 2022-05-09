@@ -78,6 +78,7 @@ systemctl restart apache2
 # Copy file from default one
 cp $defaultPath/config/mail.ini.default $defaultPath/config/mail.ini
 cp $defaultPath/config/secrets.default $defaultPath/config/secrets
+cp $defaultPath/.rest_auth.default $defaultPath/.rest_auth
 
 ####################
 # Generate secret key for Flask and replace it in src/backend/__init.py file
