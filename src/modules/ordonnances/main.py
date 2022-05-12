@@ -121,6 +121,7 @@ def find_date(dateProcess, text_with_conf, prescription_time_delta):
     dateProcess.prescriptionDate = _date
     dateProcess.timeDelta = 0
     date_birth = dateProcess.run()
+    tmp_date = None
 
     if date_birth:
         if _date and datetime.strptime(date_birth, '%d/%m/%Y') > datetime.strptime(_date, '%d/%m/%Y'):
@@ -322,7 +323,6 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
     levenshtein_ratio = '2'
-
     if prescribers:
         for cpt in range(0, len(prescribers)):
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
@@ -372,8 +372,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
                     'table': ['application.praticien'],
-                    'where': ['(LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
-                    'data': [lastname, firstname, lastname, firstname, cabinet_id],
+                    'where': ['(LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
+                    'data': [lastname.lower(), firstname.lower(), lastname.lower(), firstname.lower(), cabinet_id],
                     'limit': 1
                 })
                 if info:
@@ -444,7 +444,7 @@ def run(args):
     path = current_app.config['PATH']
     file = path + '/' + generate_tmp_filename()
     with open(file, "wb") as _file:
-        _file.write(base64.b64decode(file_content))
+        _file.write(base64.b64decode(file_content * (-len(file_content) % 4)))
 
     # Set up the global settings
     _ret = _data = _http_code = None
