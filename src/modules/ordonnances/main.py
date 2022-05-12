@@ -372,8 +372,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
                     'table': ['application.praticien'],
-                    'where': ['(LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
-                    'data': [lastname.lower(), firstname.lower(), lastname.lower(), firstname.lower(), cabinet_id],
+                    'where': ['(LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
+                    'data': [lastname.lower(), firstname.lower(), cabinet_id],
                     'limit': 1
                 })
                 if info:
@@ -382,16 +382,40 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     continue
                 else:
                     info = database.select({
-                        'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
-                        'table': ['sesam.prescripteur'],
-                        'where': ['(LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ') OR (LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ')'],
-                        'data': [lastname, firstname, lastname, firstname],
+                        'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                        'table': ['application.praticien'],
+                        'where': ['(LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
+                        'data': [lastname.lower(), firstname.lower(), cabinet_id],
                         'limit': 1
                     })
                     if info:
-                        info[0]['id_praticien'] = None
+                        info[0]['id_prescripteur'] = None
                         ps_list.append(info[0])
                         continue
+                    else:
+                        info = database.select({
+                            'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
+                            'table': ['sesam.prescripteur'],
+                            'where': ['LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio],
+                            'data': [lastname, firstname],
+                            'limit': 1
+                        })
+                        if info:
+                            info[0]['id_praticien'] = None
+                            ps_list.append(info[0])
+                            continue
+                        else:
+                            info = database.select({
+                                'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
+                                'table': ['sesam.prescripteur'],
+                                'where': ['LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio],
+                                'data': [lastname, firstname],
+                                'limit': 1
+                            })
+                            if info:
+                                info[0]['id_praticien'] = None
+                                ps_list.append(info[0])
+                                continue
             ps_list.append({
                 'id_praticien': '',
                 'id_prescripteur': '',
@@ -435,7 +459,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
 
 
 def run(args):
-    if 'fileContent' not in args or 'cabinetId' not in args:
+    if 'fileContent' not in args or not args['fileContent'] or 'cabinetId' not in args or not args['cabinetId']:
         return False, "Il manque une ou plusieurs donnée(s) obligatoire(s)", 400
 
     cabinet_id = args['cabinetId']
@@ -483,15 +507,15 @@ def run(args):
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id)
             patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers)
             if not patients:
-                patients = [{'id': '', 'prenom': '', 'nom': '', 'nir': ''}]
+                patients = [{'id': None, 'prenom': '', 'nom': '', 'nir': ''}]
             if not prescribers:
-                prescribers = [{'id_praticien': '', 'id_prescripteur': '', 'prenom': '', 'nom': '', 'numero_rpps_cle': '', 'numero_adeli_cle': ''}]
+                prescribers = [{'id_praticien': None, 'id_prescripteur': None, 'prenom': '', 'nom': '', 'numero_rpps_cle': '', 'numero_adeli_cle': ''}]
 
             _data = {
                 'patients': patients,
                 'prescripteurs': prescribers,
-                'acte': None,
-                'description': None,
+                'acte': '',
+                'description': '',
                 'prescription_date': prescription_date,
             }
 
@@ -517,8 +541,8 @@ def run(args):
                 found_in_text = False
                 for line in text_with_conf:
                     for _ps in prescribers:
-                        if _ps['prenom'] + ' ' + _ps['nom'] in line['text'] or \
-                           _ps['nom'] + ' ' + _ps['prenom'] in line['text']:
+                        if _ps['prenom'].lower() + ' ' + _ps['nom'].lower() in line['text'].lower() or \
+                           _ps['nom'].lower() + ' ' + _ps['prenom'].lower() in line['text'].lower():
                             found_in_text = True
 
                     if found_in_text:
