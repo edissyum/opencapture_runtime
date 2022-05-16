@@ -330,7 +330,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                     'table': ['application.praticien'],
-                    'where': ['numeroRppsCle = %s', 'cabinet_id = %s'],
+                    'where': ['numero_rpps_cle = %s', 'cabinet_id = %s'],
                     'data': [rpps_numbers[cpt], cabinet_id],
                     'limit': 1
                 })
@@ -345,7 +345,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as idPraticien', 'nom', 'prenom', 'numeroRppsCle', 'numeroAdeliCle'],
                     'table': ['application.praticien'],
-                    'where': ['numeroAdeliCle = %s', 'cabinet_id = %s'],
+                    'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
                     'data': [adeli_numbers[cpt], cabinet_id],
                     'limit': 1
                 })
@@ -409,7 +409,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 info = database.select({
                     'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                     'table': ['application.praticien'],
-                    'where': ['numeroRppsCle = %s', 'cabinet_id = %s'],
+                    'where': ['numero_rpps_cle = %s', 'cabinet_id = %s'],
                     'data': [rpps, cabinet_id],
                     'limit': 1
                 })
@@ -425,7 +425,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     info = database.select({
                         'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                         'table': ['application.praticien'],
-                        'where': ['numeroAdeliCle = %s', 'cabinet_id = %s'],
+                        'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
                         'data': [adeli, cabinet_id],
                         'limit': 1
                     })

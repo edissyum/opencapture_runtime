@@ -150,6 +150,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
     if date_birth and patient is None:
         text_words = ocr.word_box_builder(image_content)
         patient = search_patient_from_birth_date(date_birth, text_words)
+
     if patient:
         if not patient.isupper():
             splitted = patient.split(' ')
@@ -164,6 +165,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             splitted = patient.split(' ')
             lastname = splitted[0].strip()
             firstname = splitted[1].strip() if len(splitted) > 1 else ''
+
     if nir or (lastname and firstname) or date_birth:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
         patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
@@ -172,48 +174,64 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                 date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
             for _patient in json.loads(patients_cabinet):
                 if date_birth and lastname and firstname and nir:
-                    if date_birth == _patient['dateNaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and nir == _patient['nir']:
+                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and nir == _patient['nir']:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
                 if date_birth and nir:
-                    if date_birth == _patient['dateNaissance'] and nir == _patient['nir']:
+                    if date_birth == _patient['datenaissance'] and nir == _patient['nir']:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
                 if date_birth and lastname and firstname:
-                    if date_birth == _patient['dateNaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
+                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
                 if date_birth and lastname:
-                    if date_birth == _patient['dateNaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
+                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
                 if nir:
                     if nir == _patient['nir']:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
                 if lastname and firstname:
                     if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
                     if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
                 if date_birth:
-                    if date_birth == _patient['dateNaissance']:
+                    if date_birth == _patient['datenaissance']:
                         patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
                         patients.append(_patient)
                         break
 
@@ -287,15 +305,21 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                     if lastname and firstname:
                                         if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
                                             patient_found = True
+                                            _patient['dateNaissance'] = _patient['datenaissance']
+                                            del _patient['datenaissance']
                                             patients.append(_patient)
                                             break
                                         if fuzz.ratio(lastname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                                             patient_found = True
+                                            _patient['dateNaissance'] = _patient['datenaissance']
+                                            del _patient['datenaissance']
                                             patients.append(_patient)
                                             break
                                     elif lastname and not firstname:
                                         if fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                                             patient_found = True
+                                            _patient['dateNaissance'] = _patient['datenaissance']
+                                            del _patient['datenaissance']
                                             patients.append(_patient)
                                             break
 
