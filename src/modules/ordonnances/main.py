@@ -358,6 +358,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 })
 
                 if info:
+                    info[0]['idPraticien'] = info[0]['idpraticien']
+                    del info[0]['idpraticien']
                     info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
                     continue
@@ -372,6 +374,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     'limit': 1
                 })
                 if info:
+                    info[0]['idPraticien'] = info[0]['idpraticien']
+                    del info[0]['idpraticien']
                     info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
                     continue
@@ -400,6 +404,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     'limit': 1
                 })
                 if info:
+                    info[0]['idPraticien'] = info[0]['idpraticien']
+                    del info[0]['idpraticien']
                     info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
                     continue
@@ -412,6 +418,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                         'limit': 1
                     })
                     if info:
+                        info[0]['idPraticien'] = info[0]['idpraticien']
+                        del info[0]['idpraticien']
                         info[0]['idPrescripteur'] = None
                         ps_list.append(info[0])
                         continue
@@ -424,6 +432,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                             'limit': 1
                         })
                         if info:
+                            info[0]['idPrescripteur'] = info[0]['idprescripteur']
+                            del info[0]['idprescripteur']
                             info[0]['idPraticien'] = None
                             ps_list.append(info[0])
                             continue
@@ -436,6 +446,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                                 'limit': 1
                             })
                             if info:
+                                info[0]['idPrescripteur'] = info[0]['idprescripteur']
+                                del info[0]['idprescripteur']
                                 info[0]['idPraticien'] = None
                                 ps_list.append(info[0])
                                 continue
@@ -460,6 +472,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     'limit': 1
                 })
                 if info:
+                    info[0]['idPraticien'] = info[0]['idpraticien']
+                    del info[0]['idpraticien']
                     prescriber_found = True
                     info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
@@ -476,6 +490,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                         'limit': 1
                     })
                     if info:
+                        info[0]['idPraticien'] = info[0]['idpraticien']
+                        del info[0]['idpraticien']
                         info[0]['idPrescripteur'] = None
                         ps_list.append(info[0])
     return ps_list
