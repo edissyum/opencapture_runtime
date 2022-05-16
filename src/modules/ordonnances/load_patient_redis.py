@@ -36,6 +36,6 @@ if __name__ == '__main__':
     for cabinet in list_cabinet:
         cabinet_name = 'patient_cabinet_' + str(cabinet['cabinet_id'])
         print(cabinet_name)
-        cursor.execute("SELECT id, nom, prenom, nir, date_naissance FROM application.patient WHERE cabinet_id = " + str(cabinet['cabinet_id']))
+        cursor.execute("SELECT id, nom, prenom, nir, date_naissance as dateNaissance FROM application.patient WHERE cabinet_id = " + str(cabinet['cabinet_id']))
         list_patients = cursor.fetchall()
         r.set(cabinet_name, json.dumps(list_patients))

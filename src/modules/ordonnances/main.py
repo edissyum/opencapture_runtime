@@ -172,25 +172,25 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                 date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
             for _patient in json.loads(patients_cabinet):
                 if date_birth and lastname and firstname and nir:
-                    if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and nir == _patient['nir']:
+                    if date_birth == _patient['dateNaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and nir == _patient['nir']:
                         patient_found = True
                         patients.append(_patient)
                         break
 
                 if date_birth and nir:
-                    if date_birth == _patient['date_naissance'] and nir == _patient['nir']:
+                    if date_birth == _patient['dateNaissance'] and nir == _patient['nir']:
                         patient_found = True
                         patients.append(_patient)
                         break
 
                 if date_birth and lastname and firstname:
-                    if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
+                    if date_birth == _patient['dateNaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio:
                         patient_found = True
                         patients.append(_patient)
                         break
 
                 if date_birth and lastname:
-                    if date_birth == _patient['date_naissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
+                    if date_birth == _patient['dateNaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio:
                         patient_found = True
                         patients.append(_patient)
                         break
@@ -212,15 +212,15 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         break
 
                 if date_birth:
-                    if date_birth == _patient['date_naissance']:
+                    if date_birth == _patient['dateNaissance']:
                         patient_found = True
                         patients.append(_patient)
                         break
 
             if patient_found:
                 for _p in patients:
-                    if _p['date_naissance']:
-                        _p['date_naissance'] = datetime.strptime(_p['date_naissance'], '%Y%m%d').strftime('%d/%m/%Y')
+                    if _p['dateNaissance']:
+                        _p['dateNaissance'] = datetime.strptime(_p['dateNaissance'], '%Y%m%d').strftime('%d/%m/%Y')
 
     if not patient_found:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -311,7 +311,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             'id': None,
             'prenom': firstname.strip(),
             'nom': lastname.strip(),
-            'date_naissance': date_birth,
+            'dateNaissance': date_birth,
             'nir': nir
         })
 
@@ -327,29 +327,29 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
         for cpt in range(0, len(prescribers)):
             if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
                 info = database.select({
-                    'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                    'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                     'table': ['application.praticien'],
-                    'where': ['numero_rpps_cle = %s', 'cabinet_id = %s'],
+                    'where': ['numeroRppsCle = %s', 'cabinet_id = %s'],
                     'data': [rpps_numbers[cpt], cabinet_id],
                     'limit': 1
                 })
 
                 if info:
-                    info[0]['id_prescripteur'] = None
+                    info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
                     continue
 
             adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
             if adeli_numbers and cpt <= len(adeli_numbers) - 1 and adeli_numbers[cpt]:
                 info = database.select({
-                    'select': ['id as id_praticien', 'nom', 'prenom', 'numero_rpps_cle', 'numero_adeli_cle'],
+                    'select': ['id as idPraticien', 'nom', 'prenom', 'numeroRppsCle', 'numeroAdeliCle'],
                     'table': ['application.praticien'],
-                    'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
+                    'where': ['numeroAdeliCle = %s', 'cabinet_id = %s'],
                     'data': [adeli_numbers[cpt], cabinet_id],
                     'limit': 1
                 })
                 if info:
-                    info[0]['id_prescripteur'] = None
+                    info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
                     continue
 
@@ -370,59 +370,59 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
 
             if firstname and lastname:
                 info = database.select({
-                    'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                    'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                     'table': ['application.praticien'],
                     'where': ['(LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
                     'data': [lastname.lower(), firstname.lower(), cabinet_id],
                     'limit': 1
                 })
                 if info:
-                    info[0]['id_prescripteur'] = None
+                    info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
                     continue
                 else:
                     info = database.select({
-                        'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                        'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                         'table': ['application.praticien'],
                         'where': ['(LEVENSHTEIN(lower(prenom), %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(lower(nom), %s) <= ' + levenshtein_ratio + ')', 'cabinet_id = %s'],
                         'data': [lastname.lower(), firstname.lower(), cabinet_id],
                         'limit': 1
                     })
                     if info:
-                        info[0]['id_prescripteur'] = None
+                        info[0]['idPrescripteur'] = None
                         ps_list.append(info[0])
                         continue
                     else:
                         info = database.select({
-                            'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
+                            'select': ['id as idPrescripteur', 'nom', 'prenom', 'numero_idfact_cle as numeroAdeliCle', 'numeroRppsCle'],
                             'table': ['sesam.prescripteur'],
                             'where': ['LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio],
                             'data': [lastname, firstname],
                             'limit': 1
                         })
                         if info:
-                            info[0]['id_praticien'] = None
+                            info[0]['idPraticien'] = None
                             ps_list.append(info[0])
                             continue
                         else:
                             info = database.select({
-                                'select': ['id as id_prescripteur', 'nom', 'prenom', 'numero_idfact_cle as numero_adeli_cle', 'numero_rpps_cle'],
+                                'select': ['id as idPrescripteur', 'nom', 'prenom', 'numero_idfact_cle as numeroAdeliCle', 'numeroRppsCle'],
                                 'table': ['sesam.prescripteur'],
                                 'where': ['LEVENSHTEIN(prenom, %s) <= ' + levenshtein_ratio + ' AND LEVENSHTEIN(nom, %s) <= ' + levenshtein_ratio],
                                 'data': [lastname, firstname],
                                 'limit': 1
                             })
                             if info:
-                                info[0]['id_praticien'] = None
+                                info[0]['idPraticien'] = None
                                 ps_list.append(info[0])
                                 continue
             ps_list.append({
-                'id_praticien': '',
-                'id_prescripteur': '',
+                'idPraticien': '',
+                'idPrescripteur': '',
                 'prenom': firstname.strip(),
                 'nom': lastname.strip(),
-                'numero_adeli_cle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else None,
-                'numero_rpps_cle': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else None
+                'numeroAdeliCle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else None,
+                'numeroRppsCle': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else None
             })
             continue
     else:
@@ -430,15 +430,15 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
         if rpps_numbers:
             for rpps in rpps_numbers:
                 info = database.select({
-                    'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                    'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                     'table': ['application.praticien'],
-                    'where': ['numero_rpps_cle = %s', 'cabinet_id = %s'],
+                    'where': ['numeroRppsCle = %s', 'cabinet_id = %s'],
                     'data': [rpps, cabinet_id],
                     'limit': 1
                 })
                 if info:
                     prescriber_found = True
-                    info[0]['id_prescripteur'] = None
+                    info[0]['idPrescripteur'] = None
                     ps_list.append(info[0])
 
         if not prescriber_found:
@@ -446,14 +446,14 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
             if adeli_numbers:
                 for adeli in adeli_numbers:
                     info = database.select({
-                        'select': ['id as id_praticien', 'nom', 'prenom', 'numero_adeli_cle', 'numero_rpps_cle'],
+                        'select': ['id as idPraticien', 'nom', 'prenom', 'numeroAdeliCle', 'numeroRppsCle'],
                         'table': ['application.praticien'],
-                        'where': ['numero_adeli_cle = %s', 'cabinet_id = %s'],
+                        'where': ['numeroAdeliCle = %s', 'cabinet_id = %s'],
                         'data': [adeli, cabinet_id],
                         'limit': 1
                     })
                     if info:
-                        info[0]['id_prescripteur'] = None
+                        info[0]['idPrescripteur'] = None
                         ps_list.append(info[0])
     return ps_list
 
@@ -503,20 +503,20 @@ def run(args):
         text_with_conf, char_count = ocr.image_to_text_with_conf(image_content)
 
         if int(char_count) > int(min_char):
-            prescription_date, birth_date, orig_prescription = find_date(date_process, text_with_conf, prescription_time_delta)
+            prescriptionDate, birth_date, orig_prescription = find_date(date_process, text_with_conf, prescription_time_delta)
             prescribers = find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id)
             patients = find_patient(birth_date, text_with_conf, log, locale, ocr, image_content, cabinet_id, prescribers)
             if not patients:
                 patients = [{'id': None, 'prenom': '', 'nom': '', 'nir': ''}]
             if not prescribers:
-                prescribers = [{'id_praticien': None, 'id_prescripteur': None, 'prenom': '', 'nom': '', 'numero_rpps_cle': '', 'numero_adeli_cle': ''}]
+                prescribers = [{'idPraticien': None, 'idPrescripteur': None, 'prenom': '', 'nom': '', 'numeroRppsCle': '', 'numeroAdeliCle': ''}]
 
             _data = {
                 'patients': patients,
                 'prescripteurs': prescribers,
                 'acte': '',
                 'description': '',
-                'prescription_date': prescription_date,
+                'prescriptionDate': prescriptionDate,
             }
 
             description = ''
@@ -550,7 +550,7 @@ def run(args):
             _data.update({'description': description})
 
             end = time.time()
-            _data.update({'process_time': timer(start, end)})
+            _data.update({'processTime': timer(start, end)})
             _ret = True
             _http_code = 200
         else:
