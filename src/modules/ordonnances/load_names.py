@@ -9,7 +9,7 @@ def timer(start_time, end_time):
 
 
 if __name__ == '__main__':
-    file = '/home/nathan/Bureau/EXPORT_CBA/LISTE_PRENOMS.csv'
+    file = '/var/www/html/opencapture_runtime/src/modules/ordonnances/LISTE_PRENOMS.csv'
     names = []
     exclusions = ['paris', 'juste', 'avril', 'lucho', 'donna', 'nance', 'patient', 'georg', 'iness',
                   'issem', 'melan', 'aires', 'matine', 'erman', 'lance', 'amedi', 'hande', 'samed',
