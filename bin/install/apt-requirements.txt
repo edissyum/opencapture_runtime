@@ -1,7 +1,6 @@
 redis
 apache2
 python3
-psycopg2
 python3-pip
 imagemagick
 tesseract-ocr

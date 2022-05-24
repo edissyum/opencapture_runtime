@@ -5,6 +5,7 @@ PyJWT
 pandas
 pillow
 thefuzz
+psycopg2
 werkzeug
 unidecode
 pytesseract
