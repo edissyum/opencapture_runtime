@@ -113,6 +113,7 @@ def get_raw_document():
             _file.write(base64.b64decode(args['fileContent']))
     image_content = Image.open(file)
     text_content = ocr.text_builder(image_content)
+    os.remove(file)
     return {"data": text_content}
 
 @app.route('/oc/getDocumentInformations', methods=['POST'])
