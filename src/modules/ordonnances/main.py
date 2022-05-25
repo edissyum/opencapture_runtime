@@ -14,7 +14,7 @@
 # along with Open-Capture for Invoices. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
 
 # @dev : Nathan Cheval <nathan.cheval@outlook.fr>
-
+import binascii
 import os
 import re
 import time
@@ -506,8 +506,15 @@ def run(args):
 
     path = current_app.config['PATH']
     file = path + '/' + generate_tmp_filename()
-    with open(file, "wb") as _file:
-        _file.write(base64.b64decode(file_content * (-len(file_content) % 4)))
+    try:
+        with open(file, "wb") as _file:
+            size = _file.write(base64.b64decode(file_content * (-len(file_content) % 4)))
+        if size == 0:
+            with open(file, "wb") as _file:
+                _file.write(base64.b64decode(file_content))
+    except binascii.Error:
+        with open(file, "wb") as _file:
+            _file.write(base64.b64decode(file_content))
 
     # Set up the global settings
     _ret = _data = _http_code = None
