@@ -36,7 +36,7 @@ cp -r "$OCRunTime" "$backupPath"
 cd "$OCRunTime" || exit 1
 git config --global user.email "update@ocforinvoices"
 git config --global user.name "Update Open-Capture Runtime"
-git stash # Remove custom code if needed
+git stash
 git pull
 git config core.fileMode False
 
