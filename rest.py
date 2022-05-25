@@ -16,10 +16,14 @@
 # @dev : Nathan Cheval <nathan.cheval@outlook.fr>
 
 import os
+import base64
+import binascii
+from PIL import Image
 from src.classes.Log import Log
-from flask import Flask, request
-from src.functions import is_dev
+from flask import Flask, request, current_app
+from src.classes.PyTesseract import PyTesseract
 from src.auth import token_required, generate_token
+from src.functions import is_dev, generate_tmp_filename
 
 app = Flask(__name__)
 
@@ -87,6 +91,29 @@ def get_token():
         'days_before_exp': days_before_exp,
     }
 
+@app.route('/oc/getRawDocument', methods=['POST'])
+@is_dev
+@token_required
+def get_raw_document():
+    args = request.get_json()
+    if 'fileContent' not in args or not args['fileContent'] or 'lang' not in args or not args['lang']:
+        return {'error': "Il manque une ou plusieurs donnée(s) obligatoire(s)"}, 400
+    ocr = PyTesseract(args['lang'], None, './')
+    path = current_app.config['PATH']
+    file = path + '/' + generate_tmp_filename()
+
+    try:
+        with open(file, "wb") as _file:
+            size = _file.write(base64.b64decode(args['fileContent'] * (-len(args['fileContent']) % 4)))
+        if size == 0:
+            with open(file, "wb") as _file:
+                _file.write(base64.b64decode(args['fileContent']))
+    except binascii.Error:
+        with open(file, "wb") as _file:
+            _file.write(base64.b64decode(args['fileContent']))
+    image_content = Image.open(file)
+    text_content = ocr.text_builder(image_content)
+    return {"data": text_content}
 
 @app.route('/oc/getDocumentInformations', methods=['POST'])
 @is_dev
@@ -99,11 +126,14 @@ def get_document_informations():
             _filename = _module.get(args['module']).get('filename').replace('.py', '')
             _method = _module.get(args['module']).get('method')
             run_module = getattr(__import__('src.modules.' + args['module'] + '.' + _filename, fromlist=_method), _method)
-            res = run_module(args['data'])
-            if res[0]:
-                return {'data': res[1], 'error': None}, res[2]
-            else:
-                return {'error': res[1]}, res[2]
+            try:
+                res = run_module(args['data'])
+                if res[0]:
+                    return {'data': res[1], 'error': None}, res[2]
+                else:
+                    return {'error': res[1]}, res[2]
+            except Exception as _e:
+                return {'error': str(_e)}, 500
         else:
             return {'error': "Module '" + args['module'] + "' non implémenté"}, 409
     else:
