@@ -21,7 +21,7 @@ class Config:
 
 
 if __name__ == '__main__':
-    config = Config('config/modules/ordonnances/config.ini')
+    config = Config('/var/www/html/opencapture_runtime/config/modules/ordonnances/config.ini')
     conn = psycopg2.connect(
         "dbname     = " + config.cfg['DATABASE']['postgres_database'] +
         " user      = " + config.cfg['DATABASE']['postgres_user'] +
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         " port      = " + config.cfg['DATABASE']['postgres_port'])
 
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("SELECT DISTINCT(cabinet_id) FROM application.patient")
+    cursor.execute("SELECT DISTINCT(cabinet_id) FROM application.patient ORDER BY cabinet_id ASC")
     r = redis.StrictRedis(host='localhost', port=6379, db=0)
     list_cabinet = cursor.fetchall()
     for cabinet in list_cabinet:
