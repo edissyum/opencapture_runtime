@@ -98,8 +98,8 @@ def get_raw_document():
     args = request.get_json()
     if 'fileContent' not in args or not args['fileContent'] or 'lang' not in args or not args['lang']:
         return {'error': "Il manque une ou plusieurs donnée(s) obligatoire(s)"}, 400
-    ocr = PyTesseract(args['lang'], None, './')
     path = current_app.config['PATH']
+    ocr = PyTesseract(args['lang'], None, path)
     file = path + '/' + generate_tmp_filename()
 
     try:
