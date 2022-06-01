@@ -70,7 +70,7 @@ class FindRPPS:
             pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
             line = re.sub(pattern, item, line)
 
-        line = line.replace('/', '').replace(' ', '').replace('-', '')
+        line = line.replace('/', '').replace(' ', '').replace('-', '').replace('.', '')
 
         for rpps in re.finditer(r"(N(°|O)\s*)?(RPPS).*", line.upper()):
             rpps = re.split(r"(?:(?:N(?:°|O))\s*(?:(RPPS)))", rpps.group(), flags=re.IGNORECASE)

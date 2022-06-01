@@ -343,6 +343,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
 
 def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     ps_list = []
+    adeli_numbers = []
     prescribers = FindPrescriber(text_with_conf, log, locale, ocr).run()
     rpps_numbers = FindRPPS(text_with_conf, log, locale, ocr).run()
     levenshtein_ratio = '2'
@@ -364,8 +365,9 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                     ps_list.append(info[0])
                     continue
 
-            adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
-            if adeli_numbers and cpt <= len(adeli_numbers) - 1 and adeli_numbers[cpt]:
+            if not adeli_numbers:
+                adeli_numbers = FindAdeli(text_with_conf, log, locale, ocr).run()
+            if adeli_numbers and len(adeli_numbers) == len(prescribers) and cpt <= len(adeli_numbers) - 1 and adeli_numbers[cpt]:
                 info = database.select({
                     'select': ['id as idPraticien', 'nom', 'prenom', 'numero_rpps_cle as numeroRppsCle', 'numero_adeli_cle as numeroAdeliCle'],
                     'table': ['application.praticien'],

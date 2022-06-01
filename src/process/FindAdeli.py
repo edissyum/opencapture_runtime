@@ -71,7 +71,7 @@ class FindAdeli:
                 pattern = r'[%s]' % self.ocr.OCRErrorsTable['NUMBERS'][item]
                 line = re.sub(pattern, item, line)
 
-        line = line.replace('/', '').replace(' ', '').replace('-', '')
+        line = line.replace('/', '').replace(' ', '').replace('-', '').replace('.', '')
         for _adeli in re.finditer(r"N(°|O)\s*(FIN(E|C)SS|AD(E|É)LI).*", line.upper()):
             adelis = re.split(r"(?:(?:N(?:°|O))\s*(?:FIN(?:E|C)SS|AD(?:E|É)LI))", _adeli.group(), flags=re.IGNORECASE)
             for _ad in adelis:
