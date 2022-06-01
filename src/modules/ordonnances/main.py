@@ -349,7 +349,7 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
     levenshtein_ratio = '2'
     if prescribers:
         for cpt in range(0, len(prescribers)):
-            if rpps_numbers and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
+            if rpps_numbers and len(rpps_numbers) == len(prescribers) and cpt <= len(rpps_numbers) - 1 and rpps_numbers[cpt]:
                 info = database.select({
                     'select': ['id as idPraticien', 'nom', 'prenom', 'numero_adeli_cle as numeroAdeliCle', 'numero_rpps_cle as numeroRppsCle'],
                     'table': ['application.praticien'],
