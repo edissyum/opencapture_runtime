@@ -227,18 +227,26 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         patients.append(_patient)
                         break
 
-                if date_birth:
-                    if date_birth == _patient['datenaissance']:
-                        patient_found = True
-                        _patient['dateNaissance'] = _patient['datenaissance']
-                        del _patient['datenaissance']
-                        patients.append(_patient)
-                        break
-
             if patient_found:
                 for _p in patients:
                     if _p['dateNaissance']:
                         _p['dateNaissance'] = datetime.strptime(_p['dateNaissance'], '%Y%m%d').strftime('%d/%m/%Y')
+
+    if not patient_found and date_birth:
+        r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
+        if patients_cabinet:
+            try:
+                date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
+            except ValueError:
+                pass
+            for _patient in json.loads(patients_cabinet):
+                if date_birth == _patient['datenaissance']:
+                    patient_found = True
+                    _patient['dateNaissance'] = _patient['datenaissance']
+                    del _patient['datenaissance']
+                    patients.append(_patient)
+                    break
 
     if not patient_found:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -253,15 +261,25 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         if name.lower() in text['text'].lower() and not found_in_line:
                             if prescribers:
                                 for prescriber in prescribers:
-                                    if prescriber['nom'].lower() not in text['text'].lower() and text['conf'] > 65:
+                                    if text['conf'] > 65:
                                         for word in text['text'].split(' '):
-                                            if fuzz.ratio(name.lower(), word.lower()) >= 85:
+                                            if prescriber['nom'].lower() not in word.lower() and fuzz.ratio(prescriber['prenom'].lower(), word.lower()) <= 85 \
+                                                    and fuzz.ratio(name.lower(), word.lower()) >= 85:
                                                 _patient = text['text']
+                                                _patient = re.sub(r"((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)", '', _patient, flags=re.IGNORECASE)
+                                                _patient = _patient.strip()
                                                 found_in_line = True
                                                 prenom = name
+
                                                 for _prescriber_name in re.finditer(r"((D|P|J)?OCTEUR(?!S)|DR\.).*", _patient, flags=re.IGNORECASE):
-                                                    _patient = ''
-                                        break
+                                                    _patient = re.sub(r"((D|P|J)?OCTEUR(?!S)|DR\.)", '', _patient, flags=re.IGNORECASE)
+                                                    for _p in _patient.split(' '):
+                                                        if fuzz.ratio(prescriber['prenom'].lower(), _p.lower()) >= 85:
+                                                            _patient = _patient.replace(_p, '')
+                                                        if fuzz.ratio(prescriber['nom'].lower(), _p.lower()) >= 85:
+                                                            _patient = _patient.replace(_p, '')
+                                                    _patient = _patient.strip()
+                                                    break
 
                             if _patient:
                                 firstname = lastname = ''
@@ -270,12 +288,16 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                                     if len(splitted) > 2:
                                         for _cpt in range(0, len(splitted)):
                                             if prenom.lower() in splitted[_cpt].lower():
-                                                _patient = splitted[_cpt - 1] + ' '
+                                                try:
+                                                    _patient = splitted[_cpt - 2] + ' '
+                                                except IndexError:
+                                                    pass
+                                                _patient += splitted[_cpt - 1] + ' '
                                                 _patient += splitted[_cpt]
                                                 if len(splitted) > _cpt + 1:
                                                     _patient = ' ' + splitted[_cpt + 1]
+
                                     if not _patient.isupper():
-                                        splitted = _patient.split(' ')
                                         if splitted[0] == 'M':
                                             del splitted[0]
                                         for data in splitted:
@@ -339,6 +361,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
         })
 
     return patients
+
 
 
 def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):

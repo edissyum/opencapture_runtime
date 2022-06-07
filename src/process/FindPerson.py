@@ -34,7 +34,7 @@ class FindPerson:
                 person_name = re.sub(r"((MADAME|MADEMOISELLE|MLLE|MME|(M)?ONSIEUR)|NOM\s*:)", '', _person_name.group(), flags=re.IGNORECASE)
                 person_name = re.sub(r"\d(\s*(ans))?", '', person_name, flags=re.IGNORECASE)
                 person_name = re.sub(r"[‘|!,*)@#%(&$_?.^:\[\]]", '', person_name, flags=re.IGNORECASE)
-                person_name = re.sub(r"(N(É|E)(\(?E\)?)?\s*(F|L|1)E)|DATE\s*DE\s*NAISSANCE", '', person_name, flags=re.IGNORECASE)
+                person_name = re.sub(r"(N(É|E)(\(?E\)?)?\s*(F|L|1)E)|DATE\s*DE\s*NAISSANCE|DDN", '', person_name, flags=re.IGNORECASE)
                 person_name = person_name.strip()
                 tmp_person = ''
                 for word in person_name.split(' '):
