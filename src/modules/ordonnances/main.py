@@ -174,7 +174,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                 date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
             for _patient in json.loads(patients_cabinet):
                 if date_birth and lastname and firstname and nir:
-                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and nir == _patient['nir']:
+                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and (nir == _patient['nir'] or nir[:-2] == _patient['nir']):
                         patient_found = True
                         _patient['dateNaissance'] = _patient['datenaissance']
                         del _patient['datenaissance']
@@ -182,7 +182,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         break
 
                 if date_birth and nir:
-                    if date_birth == _patient['datenaissance'] and nir == _patient['nir']:
+                    if date_birth == _patient['datenaissance'] and (nir == _patient['nir'] or nir[:-2] == _patient['nir']):
                         patient_found = True
                         _patient['dateNaissance'] = _patient['datenaissance']
                         del _patient['datenaissance']
@@ -206,7 +206,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         break
 
                 if nir:
-                    if nir == _patient['nir']:
+                    if nir == _patient['nir'] or nir[:-2] == _patient['nir']:
                         patient_found = True
                         _patient['dateNaissance'] = _patient['datenaissance']
                         del _patient['datenaissance']
