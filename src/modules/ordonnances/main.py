@@ -233,20 +233,21 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         _p['dateNaissance'] = datetime.strptime(_p['dateNaissance'], '%Y%m%d').strftime('%d/%m/%Y')
 
     if not patient_found and date_birth:
-        r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
-        if patients_cabinet:
-            try:
-                date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
-            except ValueError:
-                pass
-            for _patient in json.loads(patients_cabinet):
-                if date_birth == _patient['datenaissance']:
-                    patient_found = True
-                    _patient['dateNaissance'] = _patient['datenaissance']
-                    del _patient['datenaissance']
-                    patients.append(_patient)
-                    break
+        if not patients_cabinet:
+            r = redis.StrictRedis(host='localhost', port=6379, db=0)
+            patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
+            if patients_cabinet:
+                try:
+                    date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
+                except ValueError:
+                    pass
+                for _patient in json.loads(patients_cabinet):
+                    if date_birth == _patient['datenaissance']:
+                        patient_found = True
+                        _patient['dateNaissance'] = _patient['datenaissance']
+                        del _patient['datenaissance']
+                        patients.append(_patient)
+                        break
 
     if not patient_found:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -261,7 +262,10 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         if name.lower() in text['text'].lower() and not found_in_line:
                             if prescribers:
                                 for prescriber in prescribers:
-                                    if text['conf'] > 65:
+                                    if text['conf'] > 50:
+                                        chars_to_replace = ['.', ',', '(', ')', '[', ']', '<', '>', '«', '»', ';']
+                                        for char in chars_to_replace:
+                                            text['text'] = text['text'].replace(char, '').strip()
                                         for word in text['text'].split(' '):
                                             if prescriber['nom'].lower() not in word.lower() and fuzz.ratio(prescriber['prenom'].lower(), word.lower()) <= 85 \
                                                     and fuzz.ratio(name.lower(), word.lower()) >= 85:

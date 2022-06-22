@@ -523,7 +523,7 @@ def find_rpps():
 
 if __name__ == '__main__':
     path = '/var/www/html/opencapture_runtime/'
-    prescription_path = '/home/nathan/Bureau/ordo30k/'
+    prescription_path = '/home/nathan/Bureau/EXPORT_CBA/ORDOS/'
     data_ordos = '/home/nathan/Bureau/EXPORT_CBA/dataordo30k-v3-avec-cabinet-id-client-id.csv'
     csv_export = 'export.csv'
     log = Log(path + '/bin/log/ordos30k.log', None)
@@ -546,7 +546,7 @@ if __name__ == '__main__':
         cpt = 1
         number_of_prescription = len(os.listdir(prescription_path))
         for prescription in os.listdir(prescription_path):
-            if os.path.splitext(prescription)[1] == '.jpg':  # and prescription == '23 789 763.jpg':
+            if os.path.splitext(prescription)[1] == '.jpg' and prescription == '4 617 323.jpg':
                 start = time.time()
                 # Set up data about the prescription
                 file = prescription_path + prescription
