@@ -161,7 +161,8 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                 date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
             for _patient in json.loads(patients_cabinet):
                 if date_birth and lastname and firstname and nir:
-                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and (nir == _patient['nir'] or nir[:-2] == _patient['nir']):
+                    if date_birth == _patient['datenaissance'] and fuzz.ratio(lastname.lower(), _patient['nom'].lower()) >= levenshtein_ratio and \
+                            fuzz.ratio(firstname.lower(), _patient['prenom'].lower()) >= levenshtein_ratio and (nir == _patient['nir'] or nir[:-2] == _patient['nir']):
                         patient_found = True
                         _patient['dateNaissance'] = _patient['datenaissance']
                         del _patient['datenaissance']
@@ -220,20 +221,20 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         _p['dateNaissance'] = datetime.strptime(_p['dateNaissance'], '%Y%m%d').strftime('%d/%m/%Y')
 
     if not patient_found and date_birth:
-        r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
-        if patients_cabinet:
-            try:
-                date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
-            except ValueError:
-                pass
-            for _patient in json.loads(patients_cabinet):
-                if date_birth == _patient['datenaissance']:
-                    patient_found = True
-                    _patient['dateNaissance'] = _patient['datenaissance']
-                    del _patient['datenaissance']
-                    patients.append(_patient)
-                    break
+        if not patients_cabinet:
+            r = redis.StrictRedis(host='localhost', port=6379, db=0)
+            patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
+        try:
+            date_birth = datetime.strptime(date_birth, '%d/%m/%Y').strftime('%Y%m%d')
+        except ValueError:
+            pass
+        for _patient in json.loads(patients_cabinet):
+            if date_birth == _patient['datenaissance']:
+                patient_found = True
+                _patient['dateNaissance'] = _patient['datenaissance']
+                del _patient['datenaissance']
+                patients.append(_patient)
+                break
 
     if not patient_found:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -248,7 +249,10 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
                         if name.lower() in text['text'].lower() and not found_in_line:
                             if prescribers:
                                 for prescriber in prescribers:
-                                    if text['conf'] > 65:
+                                    if text['conf'] > 50:
+                                        chars_to_replace = ['.', ',', '(', ')', '[', ']', '<', '>', '«', '»', ';']
+                                        for char in chars_to_replace:
+                                            text['text'] = text['text'].replace(char, '').strip()
                                         for word in text['text'].split(' '):
                                             if prescriber['nom'].lower() not in word.lower() and fuzz.ratio(prescriber['prenom'].lower(), word.lower()) <= 85 \
                                                     and fuzz.ratio(name.lower(), word.lower()) >= 85:
@@ -348,6 +352,7 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
         })
 
     return patients
+
 
 
 def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
@@ -467,8 +472,8 @@ def find_prescribers(text_with_conf, log, locale, ocr, database, cabinet_id):
                 'idPrescripteur': None,
                 'prenom': firstname.strip(),
                 'nom': lastname.strip(),
-                'numeroadelicle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else None,
-                'numerorppscle': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else None
+                'numeroAdeliCle': adeli_numbers[cpt] if adeli_numbers and cpt == len(adeli_numbers) - 1 else None,
+                'numeroRppsCle': rpps_numbers[cpt] if rpps_numbers and cpt == len(rpps_numbers) - 1 else None
             })
             continue
     else:
