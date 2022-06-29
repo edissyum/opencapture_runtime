@@ -165,7 +165,8 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
             splitted = patient.split(' ')
             lastname = splitted[0].strip()
             firstname = splitted[1].strip() if len(splitted) > 1 else ''
-
+    original_firstname = firstname
+    original_lastname = lastname
     if nir or (lastname and firstname) or date_birth:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
         patients_cabinet = r.get('patient_cabinet_' + str(cabinet_id))
@@ -252,7 +253,6 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
     if not patient_found:
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
         list_names = json.loads(r.get('names'))
-
         if list_names:
             for text in text_with_conf:
                 found_in_line = False
@@ -358,8 +358,8 @@ def find_patient(date_birth, text_with_conf, log, locale, ocr, image_content, ca
 
         patients.append({
             'id': None,
-            'prenom': firstname.strip(),
-            'nom': lastname.strip(),
+            'prenom': original_firstname.strip() if patient else firstname.strip(),
+            'nom': original_lastname.strip() if patient else lastname.strip(),
             'dateNaissance': date_birth,
             'nir': nir
         })
@@ -598,10 +598,9 @@ def run(args):
             if patients[0]['prenom'] and patients[0]['nom']:
                 found_in_text = False
                 for line in text_with_conf:
-                    if patients[0]['prenom'] + ' ' + patients[0]['nom'] in line['text'] or \
-                       patients[0]['nom'] + ' ' + patients[0]['prenom'] in line['text']:
+                    if fuzz.ratio(patients[0]['prenom'].lower() + ' ' + patients[0]['nom'].lower(), line['text'].lower()) >= 80 or \
+                       fuzz.ratio(patients[0]['nom'].lower() + ' ' + patients[0]['prenom'].lower(), line['text'].lower()) >= 80:
                         found_in_text = True
-
                     if found_in_text:
                         description += line['text'] + "\n"
             elif orig_prescription:
@@ -616,12 +615,15 @@ def run(args):
                 found_in_text = False
                 for line in text_with_conf:
                     for _ps in prescribers:
-                        if _ps['prenom'].lower() + ' ' + _ps['nom'].lower() in line['text'].lower() or \
-                           _ps['nom'].lower() + ' ' + _ps['prenom'].lower() in line['text'].lower():
+                        if fuzz.ratio(_ps['prenom'].lower() + ' ' + _ps['nom'].lower(), line['text'].lower()) >= 80 or \
+                           fuzz.ratio(_ps['nom'].lower() + ' ' + _ps['prenom'].lower(), line['text'].lower()) >= 80:
                             found_in_text = True
 
                     if found_in_text:
                         description += line['text'] + "\n"
+            if not description:
+                for line in text_with_conf:
+                    description += line['text'] + "\n"
             _data.update({'description': description})
 
             end = time.time()
